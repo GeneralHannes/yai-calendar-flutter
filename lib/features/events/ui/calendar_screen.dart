@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
@@ -405,8 +403,7 @@ class _BottomControls extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         GlassIconButton(
-          icon: Icon(CupertinoIcons.add, color: c.warn),
-          glowColor: c.warn.withValues(alpha: .45),
+          icon: const Icon(CupertinoIcons.add),
           onPressed: onAdd,
           size: _size,
           semanticLabel: 'Add event',
@@ -416,8 +413,7 @@ class _BottomControls extends StatelessWidget {
   }
 }
 
-/// The big date of the selected day: gold numeral, weekday and month, and a
-/// count pill in the orange accent.
+/// The selected day: gold numeral, weekday and month, and an event count.
 class _DayHero extends StatelessWidget {
   const _DayHero({required this.day, required this.count});
 
@@ -431,16 +427,8 @@ class _DayHero extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            c.gold.withValues(alpha: .16),
-            c.warn.withValues(alpha: .08),
-            Colors.transparent,
-          ],
-        ),
-        border: Border.all(color: c.gold.withValues(alpha: .35)),
+        color: c.bg2,
+        border: Border.all(color: c.ink.withValues(alpha: .1)),
       ),
       child: Row(
         children: [
@@ -448,12 +436,9 @@ class _DayHero extends StatelessWidget {
             '${day.day}',
             style: TextStyle(
               fontFamily: YaiPalette.fontFamily,
-              fontSize: 56,
+              fontSize: 48,
               height: 1,
               color: c.gold,
-              shadows: [
-                Shadow(color: c.gold.withValues(alpha: .45), blurRadius: 18)
-              ],
             ),
           ),
           const SizedBox(width: 14),
@@ -470,17 +455,9 @@ class _DayHero extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: c.warn.withValues(alpha: count == 0 ? .08 : .2),
-              border: Border.all(color: c.warn.withValues(alpha: .5)),
-            ),
-            child: Text(
-              count == 0 ? 'Free' : '$count event${count == 1 ? '' : 's'}',
-              style: TextStyle(fontSize: 12, color: c.warn),
-            ),
+          Text(
+            count == 0 ? 'Free' : '$count event${count == 1 ? '' : 's'}',
+            style: TextStyle(fontSize: 12, color: c.muted),
           ),
         ],
       ),
@@ -488,87 +465,26 @@ class _DayHero extends StatelessWidget {
   }
 }
 
-/// Page backdrop: the glass bars refract this, so it needs colour variation.
-/// Three washes (blue, gold, orange) drift slowly.
-class _Backdrop extends StatefulWidget {
+/// Page backdrop: a quiet vertical gradient with one faint blue wash, so the
+/// glass bars still have something to refract.
+class _Backdrop extends StatelessWidget {
   const _Backdrop();
-
-  @override
-  State<_Backdrop> createState() => _BackdropState();
-}
-
-class _BackdropState extends State<_Backdrop>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _t = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 40),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _t.stop();
-    } else if (!_t.isAnimating) {
-      _t.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _t.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _t,
-        builder: (context, _) {
-          final a = _t.value * 2 * math.pi;
-          Widget wash(Alignment at, double radius, Color color, Widget child) =>
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: at,
-                    radius: radius,
-                    colors: [color, Colors.transparent],
-                  ),
-                ),
-                child: child,
-              );
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  c.bg1,
-                  Color.alphaBlend(c.act.withValues(alpha: .06), c.bg1),
-                ],
-              ),
-            ),
-            child: wash(
-              Alignment(-1 + .25 * math.sin(a), -1.1 + .15 * math.cos(a)),
-              1.2,
-              c.act.withValues(alpha: .22),
-              wash(
-                Alignment(1.1 - .2 * math.cos(a), 1.1 - .2 * math.sin(a)),
-                1.0,
-                c.gold.withValues(alpha: .12),
-                wash(
-                  Alignment(1.2, -.2 + .5 * math.sin(a + 2)),
-                  .9,
-                  c.warn.withValues(alpha: .13),
-                  const SizedBox.expand(),
-                ),
-              ),
-            ),
-          );
-        },
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            c.bg1,
+            Color.alphaBlend(c.act.withValues(alpha: .05), c.bg1)
+          ],
+        ),
       ),
+      child: const SizedBox.expand(),
     );
   }
 }

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/yai_theme.dart';
@@ -18,10 +16,6 @@ Map<DateTime, List<CalendarEvent>> groupByDay(List<CalendarEvent> events) {
   return out;
 }
 
-/// A stable rainbow colour per event, from the bifrost palette.
-Color eventColor(String id) =>
-    YaiPalette.bifrost[id.hashCode.abs() % YaiPalette.bifrost.length];
-
 /// Journal-style section heading: small gold caps with wide tracking.
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key});
@@ -34,17 +28,6 @@ class SectionLabel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 18,
-          height: 2,
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2),
-            gradient: LinearGradient(colors: [
-              for (final x in YaiPalette.bifrost) x.withValues(alpha: .85),
-            ]),
-          ),
-        ),
         Text(
           text.toUpperCase(),
           style: TextStyle(
@@ -172,89 +155,6 @@ class _FadeIn extends StatelessWidget {
   }
 }
 
-/// A light that circles today's border, like the journal's border beam.
-class _Beam extends StatefulWidget {
-  const _Beam({required this.color, required this.radius});
-
-  final Color color;
-  final double radius;
-
-  @override
-  State<_Beam> createState() => _BeamState();
-}
-
-class _BeamState extends State<_Beam> with SingleTickerProviderStateMixin {
-  late final AnimationController _t = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 4),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _t.stop();
-    } else if (!_t.isAnimating) {
-      _t.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _t.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _t,
-          builder: (context, _) => CustomPaint(
-            painter: _BeamPainter(_t.value, widget.color, widget.radius),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BeamPainter extends CustomPainter {
-  _BeamPainter(this.t, this.color, this.radius);
-
-  final double t;
-  final Color color;
-  final double radius;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = (Offset.zero & size).deflate(1);
-    final shader = SweepGradient(
-      transform: GradientRotation(t * 2 * math.pi),
-      colors: [
-        Colors.transparent,
-        Colors.transparent,
-        color.withValues(alpha: .0),
-        color,
-        Colors.white.withValues(alpha: .9),
-        Colors.transparent,
-      ],
-      stops: const [0, .55, .7, .9, .96, 1],
-    ).createShader(rect);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2
-        ..shader = shader,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BeamPainter old) => old.t != t || old.color != color;
-}
-
 class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
@@ -295,7 +195,7 @@ class _DayCell extends StatelessWidget {
                   colors: [
                     c.bg2,
                     Color.alphaBlend(
-                      (isToday ? c.warn : c.act).withValues(alpha: .07),
+                      c.act.withValues(alpha: .04),
                       c.bg2,
                     ),
                   ],
@@ -358,15 +258,7 @@ class _DayCell extends StatelessWidget {
     );
     return Opacity(
       opacity: inMonth ? 1 : .4,
-      child: isToday
-          ? Stack(
-              fit: StackFit.expand,
-              children: [
-                cell,
-                Positioned.fill(child: _Beam(color: c.warn, radius: 8))
-              ],
-            )
-          : cell,
+      child: cell,
     );
   }
 
@@ -390,10 +282,10 @@ class _DayCell extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 3),
                   alignment: Alignment.centerLeft,
                   decoration: BoxDecoration(
-                    color: eventColor(e.id).withValues(alpha: .22),
+                    color: c.act.withValues(alpha: .22),
                     borderRadius: BorderRadius.circular(3),
                     border: Border(
-                      left: BorderSide(color: eventColor(e.id), width: 2),
+                      left: BorderSide(color: c.act, width: 2),
                     ),
                   ),
                   child: Text(
@@ -403,7 +295,7 @@ class _DayCell extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10 * scale,
                       height: 1,
-                      color: Color.lerp(eventColor(e.id), c.ink, .45),
+                      color: Color.lerp(c.act, c.ink, .45),
                     ),
                   ),
                 ),
@@ -452,7 +344,7 @@ class EventTile extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             border: Border(
-              left: BorderSide(color: eventColor(event.id), width: 3),
+              left: BorderSide(color: c.act, width: 3),
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -578,7 +470,7 @@ class UpNextList extends StatelessWidget {
                     TextSpan(
                       text: '  ·  $rel',
                       style: TextStyle(
-                        color: rel == 'Today' ? c.warn : c.act,
+                        color: c.muted,
                       ),
                     ),
                 ],
