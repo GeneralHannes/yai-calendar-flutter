@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +30,14 @@ Future<void> main() async {
     // MaterialApp: glass follows the app's theme mode, not the raw OS setting.
     brightnessResolver: Theme.maybeBrightnessOf,
     adaptiveQuality: true,
+    // The browser can't do true refraction, so lean on the iOS 27 material
+    // presets (stronger frost, saturation and rim light) to get closer.
+    theme: kIsWeb
+        ? const GlassThemeData(
+            light: GlassThemeVariant(settings: GlassThemeSettings.ios27Light),
+            dark: GlassThemeVariant(settings: GlassThemeSettings.ios27Dark),
+          )
+        : null,
     child: CalendarApp(local: local, prefs: prefs),
   ));
 }
