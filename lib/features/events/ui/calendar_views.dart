@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/yai_theme.dart';
@@ -16,6 +18,10 @@ Map<DateTime, List<CalendarEvent>> groupByDay(List<CalendarEvent> events) {
   return out;
 }
 
+/// A stable rainbow colour per event, from the bifrost palette.
+Color eventColor(String id) =>
+    YaiPalette.bifrost[id.hashCode.abs() % YaiPalette.bifrost.length];
+
 /// Journal-style section heading: small gold caps with wide tracking.
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key});
@@ -25,14 +31,30 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.3,
-        color: c.gold,
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 18,
+          height: 2,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            gradient: LinearGradient(colors: [
+              for (final x in YaiPalette.bifrost) x.withValues(alpha: .85),
+            ]),
+          ),
+        ),
+        Text(
+          text.toUpperCase(),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.3,
+            color: c.gold,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -98,18 +120,22 @@ class MonthGrid extends StatelessWidget {
             ),
             for (var w = 0; w < weeks; w++)
               Row(
+                key: ValueKey('${month.year}-${month.month}-$w'),
                 spacing: _gap,
                 children: [
                   for (var d = 0; d < 7; d++)
                     Expanded(
-                      child: SizedBox(
-                        height: cellHeight,
-                        child: _DayCell(
-                          day: dateAt(w, d),
-                          inMonth: dateAt(w, d).month == month.month,
-                          selected: selected,
-                          events: byDay[dateAt(w, d)] ?? const [],
-                          onTap: onDayTap,
+                      child: _FadeIn(
+                        delay: (w * 7 + d) * 14,
+                        child: SizedBox(
+                          height: cellHeight,
+                          child: _DayCell(
+                            day: dateAt(w, d),
+                            inMonth: dateAt(w, d).month == month.month,
+                            selected: selected,
+                            events: byDay[dateAt(w, d)] ?? const [],
+                            onTap: onDayTap,
+                          ),
                         ),
                       ),
                     ),
@@ -120,6 +146,113 @@ class MonthGrid extends StatelessWidget {
       },
     );
   }
+}
+
+/// Cells rise and fade in one after another when a month appears.
+class _FadeIn extends StatelessWidget {
+  const _FadeIn({required this.delay, required this.child});
+
+  final int delay;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 260 + delay),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child:
+            Transform.translate(offset: Offset(0, (1 - t) * 10), child: child),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A light that circles today's border, like the journal's border beam.
+class _Beam extends StatefulWidget {
+  const _Beam({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  @override
+  State<_Beam> createState() => _BeamState();
+}
+
+class _BeamState extends State<_Beam> with SingleTickerProviderStateMixin {
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _t.stop();
+    } else if (!_t.isAnimating) {
+      _t.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _t,
+          builder: (context, _) => CustomPaint(
+            painter: _BeamPainter(_t.value, widget.color, widget.radius),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BeamPainter extends CustomPainter {
+  _BeamPainter(this.t, this.color, this.radius);
+
+  final double t;
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).deflate(1);
+    final shader = SweepGradient(
+      transform: GradientRotation(t * 2 * math.pi),
+      colors: [
+        Colors.transparent,
+        Colors.transparent,
+        color.withValues(alpha: .0),
+        color,
+        Colors.white.withValues(alpha: .9),
+        Colors.transparent,
+      ],
+      stops: const [0, .55, .7, .9, .96, 1],
+    ).createShader(rect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..shader = shader,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BeamPainter old) => old.t != t || old.color != color;
 }
 
 class _DayCell extends StatelessWidget {
@@ -147,71 +280,93 @@ class _DayCell extends StatelessWidget {
     // Roomier desktop cells get slightly larger type.
     final scale = MediaQuery.sizeOf(context).width >= 900 ? 1.25 : 1.0;
 
-    return Opacity(
-      opacity: inMonth ? 1 : .4,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => onTap(day),
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: isSelected ? c.act.withValues(alpha: .16) : c.bg2,
-            borderRadius: BorderRadius.circular(8),
-            // Journal rings: gold for today, accent for a day with something
-            // planned, a plain hairline otherwise.
-            border: Border.all(
-              color: isSelected
-                  ? c.act
-                  : isToday
-                      ? c.gold
-                      : events.isNotEmpty
-                          ? c.act.withValues(alpha: .45)
-                          : c.ink.withValues(alpha: .1),
-              width: isSelected || isToday ? 1.5 : 1,
-            ),
-            boxShadow: [
-              if (isToday)
-                BoxShadow(color: c.gold.withValues(alpha: .3), blurRadius: 8),
-            ],
+    final cell = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTap(day),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isSelected ? c.act.withValues(alpha: .16) : null,
+          gradient: isSelected
+              ? null
+              : LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    c.bg2,
+                    Color.alphaBlend(
+                      (isToday ? c.warn : c.act).withValues(alpha: .07),
+                      c.bg2,
+                    ),
+                  ],
+                ),
+          borderRadius: BorderRadius.circular(8),
+          // Journal rings: gold for today, accent for a day with something
+          // planned, a plain hairline otherwise.
+          border: Border.all(
+            color: isSelected
+                ? c.act
+                : isToday
+                    ? c.gold
+                    : events.isNotEmpty
+                        ? c.act.withValues(alpha: .45)
+                        : c.ink.withValues(alpha: .1),
+            width: isSelected || isToday ? 1.5 : 1,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  constraints: BoxConstraints(
-                    minWidth: 22 * scale,
-                    minHeight: 22 * scale,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: isToday
-                      ? BoxDecoration(
-                          color: c.gold,
-                          borderRadius: BorderRadius.circular(12 * scale),
-                        )
-                      : null,
-                  // widthFactor keeps the marker hugging the digits.
-                  child: Center(
-                    widthFactor: 1,
-                    heightFactor: 1,
-                    child: Text(
-                      '${day.day}',
-                      style: TextStyle(
-                        fontSize: 12 * scale,
-                        fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-                        color: isToday ? c.bg1 : c.ink,
-                      ),
+          boxShadow: [
+            if (isToday)
+              BoxShadow(color: c.gold.withValues(alpha: .3), blurRadius: 8),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                constraints: BoxConstraints(
+                  minWidth: 22 * scale,
+                  minHeight: 22 * scale,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: isToday
+                    ? BoxDecoration(
+                        color: c.gold,
+                        borderRadius: BorderRadius.circular(12 * scale),
+                      )
+                    : null,
+                // widthFactor keeps the marker hugging the digits.
+                child: Center(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      fontSize: 12 * scale,
+                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                      color: isToday ? c.bg1 : c.ink,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
-              Expanded(child: _titles(c, scale)),
-            ],
-          ),
+            ),
+            const SizedBox(height: 2),
+            Expanded(child: _titles(c, scale)),
+          ],
         ),
       ),
+    );
+    return Opacity(
+      opacity: inMonth ? 1 : .4,
+      child: isToday
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                cell,
+                Positioned.fill(child: _Beam(color: c.warn, radius: 8))
+              ],
+            )
+          : cell,
     );
   }
 
@@ -235,15 +390,21 @@ class _DayCell extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 3),
                   alignment: Alignment.centerLeft,
                   decoration: BoxDecoration(
-                    color: c.act.withValues(alpha: .2),
+                    color: eventColor(e.id).withValues(alpha: .22),
                     borderRadius: BorderRadius.circular(3),
+                    border: Border(
+                      left: BorderSide(color: eventColor(e.id), width: 2),
+                    ),
                   ),
                   child: Text(
                     e.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: 10 * scale, height: 1, color: c.act),
+                      fontSize: 10 * scale,
+                      height: 1,
+                      color: Color.lerp(eventColor(e.id), c.ink, .45),
+                    ),
                   ),
                 ),
               if (events.length - shown > 0)
@@ -288,7 +449,12 @@ class EventTile extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: eventColor(event.id), width: 3),
+            ),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
@@ -88,7 +90,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    final text = Theme.of(context).textTheme;
 
     return ListenableBuilder(
       listenable: _c,
@@ -115,13 +116,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         final selectedSection = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SectionLabel(weekdayNames[_selected.weekday - 1]),
-            const SizedBox(height: 2),
-            Text(
-              '${_selected.day} ${monthNames[_selected.month - 1]}',
-              style: text.headlineSmall,
-            ),
-            const SizedBox(height: 8),
+            _DayHero(day: _selected, count: selectedEvents.length),
+            const SizedBox(height: 12),
             if (selectedEvents.isEmpty)
               Text('No events.', style: TextStyle(color: c.muted))
             else
@@ -420,43 +416,158 @@ class _BottomControls extends StatelessWidget {
   }
 }
 
-/// Page backdrop: the glass bars refract this, so it needs some colour
-/// variation rather than a flat fill.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop();
+/// The big date of the selected day: gold numeral, weekday and month, and a
+/// count pill in the orange accent.
+class _DayHero extends StatelessWidget {
+  const _DayHero({required this.day, required this.count});
+
+  final DateTime day;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    return DecoratedBox(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            c.bg1,
-            Color.alphaBlend(c.act.withValues(alpha: .06), c.bg1)
+            c.gold.withValues(alpha: .16),
+            c.warn.withValues(alpha: .08),
+            Colors.transparent,
           ],
         ),
+        border: Border.all(color: c.gold.withValues(alpha: .35)),
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(-1, -1.1),
-            radius: 1.2,
-            colors: [c.act.withValues(alpha: .22), Colors.transparent],
-          ),
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: const Alignment(1.1, 1.1),
-              radius: 1.0,
-              colors: [c.gold.withValues(alpha: .12), Colors.transparent],
+      child: Row(
+        children: [
+          Text(
+            '${day.day}',
+            style: TextStyle(
+              fontFamily: YaiPalette.fontFamily,
+              fontSize: 56,
+              height: 1,
+              color: c.gold,
+              shadows: [
+                Shadow(color: c.gold.withValues(alpha: .45), blurRadius: 18)
+              ],
             ),
           ),
-          child: const SizedBox.expand(),
-        ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SectionLabel(weekdayNames[day.weekday - 1]),
+                const SizedBox(height: 4),
+                Text(
+                  '${monthNames[day.month - 1]} ${day.year}',
+                  style: TextStyle(fontSize: 16, color: c.ink),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: c.warn.withValues(alpha: count == 0 ? .08 : .2),
+              border: Border.all(color: c.warn.withValues(alpha: .5)),
+            ),
+            child: Text(
+              count == 0 ? 'Free' : '$count event${count == 1 ? '' : 's'}',
+              style: TextStyle(fontSize: 12, color: c.warn),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Page backdrop: the glass bars refract this, so it needs colour variation.
+/// Three washes (blue, gold, orange) drift slowly.
+class _Backdrop extends StatefulWidget {
+  const _Backdrop();
+
+  @override
+  State<_Backdrop> createState() => _BackdropState();
+}
+
+class _BackdropState extends State<_Backdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 40),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _t.stop();
+    } else if (!_t.isAnimating) {
+      _t.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = YaiPalette.of(context);
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _t,
+        builder: (context, _) {
+          final a = _t.value * 2 * math.pi;
+          Widget wash(Alignment at, double radius, Color color, Widget child) =>
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: at,
+                    radius: radius,
+                    colors: [color, Colors.transparent],
+                  ),
+                ),
+                child: child,
+              );
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  c.bg1,
+                  Color.alphaBlend(c.act.withValues(alpha: .06), c.bg1),
+                ],
+              ),
+            ),
+            child: wash(
+              Alignment(-1 + .25 * math.sin(a), -1.1 + .15 * math.cos(a)),
+              1.2,
+              c.act.withValues(alpha: .22),
+              wash(
+                Alignment(1.1 - .2 * math.cos(a), 1.1 - .2 * math.sin(a)),
+                1.0,
+                c.gold.withValues(alpha: .12),
+                wash(
+                  Alignment(1.2, -.2 + .5 * math.sin(a + 2)),
+                  .9,
+                  c.warn.withValues(alpha: .13),
+                  const SizedBox.expand(),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
