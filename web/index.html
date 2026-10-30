@@ -51,6 +51,15 @@
     // Offline app shell. `sw.js` lives at the app root so its scope covers it.
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
+        // A new worker taking over means a new build: reload once so the page
+        // and its worker never run different versions.
+        var had = !!navigator.serviceWorker.controller;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (had && !sessionStorage.getItem('yai-reloaded')) {
+            sessionStorage.setItem('yai-reloaded', '1');
+            location.reload();
+          }
+        });
         navigator.serviceWorker.register('sw.js').catch(function (e) {
           console.warn('Service worker registration failed:', e);
         });

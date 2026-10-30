@@ -2,9 +2,9 @@
 //  - same-origin GETs only; API calls (cross-origin) are never touched, so
 //    sync keeps its own offline handling
 //  - navigations: network first, fall back to the cached shell
-//  - everything else: stale-while-revalidate (instant, refreshed in background)
+//  - everything else: network first, cache as the offline fallback
 // Bump CACHE to force clients to drop everything cached by an older build.
-const CACHE = 'yai-calendar-v10';
+const CACHE = 'yai-calendar-v11';
 const CORE = [
   './',
   'index.html',
@@ -53,15 +53,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network first, cache only when offline. Serving cached code first let a
+  // phone run an old main.dart.js next to new support files, which broke taps.
   event.respondWith(
-    caches.open(CACHE).then((cache) =>
-      cache.match(req).then((hit) => {
-        const refresh = fetch(req).then((res) => {
-          if (res.ok) cache.put(req, res.clone());
-          return res;
-        }).catch(() => hit);
-        return hit || refresh;
-      }),
-    ),
+    fetch(req, { cache: 'no-cache' }).then((res) => {
+      if (res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req)),
   );
 });
