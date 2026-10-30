@@ -348,24 +348,32 @@ class _DesktopHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
                 TextSpan(
-                  text: monthNames[month.month - 1],
-                  style: TextStyle(color: c.ink),
+                  children: [
+                    TextSpan(
+                      text: monthNames[month.month - 1],
+                      style: TextStyle(color: c.ink),
+                    ),
+                    TextSpan(
+                      text: ' ${month.year}',
+                      style:
+                          TextStyle(color: c.gold, fontWeight: FontWeight.w400),
+                    ),
+                  ],
                 ),
-                TextSpan(
-                  text: ' ${month.year}',
-                  style: TextStyle(color: c.gold, fontWeight: FontWeight.w400),
+                style: const TextStyle(
+                  fontFamily: YaiPalette.fontFamily,
+                  fontSize: 40,
+                  height: 1.1,
                 ),
-              ],
-            ),
-            style: const TextStyle(
-              fontFamily: YaiPalette.fontFamily,
-              fontSize: 40,
-              height: 1.1,
-            ),
+              ),
+              const SizedBox(height: 8),
+              Bifrost(key: ValueKey(month.month), width: 160),
+            ],
           ),
         ),
         if (trailing != null) trailing!,
@@ -399,16 +407,25 @@ class _MonthSwitch extends StatelessWidget {
     if (MediaQuery.disableAnimationsOf(context)) return child;
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 340),
-      switchInCurve: Curves.easeOutCubic,
+      switchInCurve: Motion.slide,
       switchOutCurve: Curves.easeIn,
-      transitionBuilder: (child, anim) => FadeTransition(
-        opacity: anim,
-        child: SlideTransition(
-          position: Tween(begin: Offset(.07 * dir, 0), end: Offset.zero)
-              .animate(anim),
+      transitionBuilder: (child, anim) {
+        final incoming = child.key == ValueKey('${month.year}-${month.month}');
+        return AnimatedBuilder(
+          animation: anim,
+          builder: (context, c) => Opacity(
+            opacity: anim.value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(
+                (incoming ? 20 : -20) * dir * (1 - anim.value),
+                0,
+              ),
+              child: c,
+            ),
+          ),
           child: child,
-        ),
-      ),
+        );
+      },
       child: KeyedSubtree(
         key: ValueKey('${month.year}-${month.month}'),
         child: child,
@@ -482,22 +499,7 @@ class _MonthTitle extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        TweenAnimationBuilder<double>(
-            key: ValueKey(month.month),
-            tween: Tween(begin: 0, end: 96),
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeOutCubic,
-            builder: (context, w, _) => Container(
-                  width: w,
-                  height: 2,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(2),
-                    gradient: LinearGradient(colors: [
-                      for (final x in YaiPalette.bifrost)
-                        x.withValues(alpha: .7),
-                    ]),
-                  ),
-                )),
+        Bifrost(key: ValueKey(month.month)),
       ],
     );
     return Row(

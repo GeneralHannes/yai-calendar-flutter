@@ -153,11 +153,21 @@ class _FadeIn extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 200 + delay),
-      curve: Curves.easeOut,
-      builder: (context, t, child) => Opacity(opacity: t, child: child),
+      curve: Motion.easeOut,
+      builder: (context, t, child) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.scale(scale: .94 + .06 * t, child: child),
+      ),
       child: child,
     );
   }
+}
+
+/// Odin's Keep easing tokens: settle into place / tactile spring / slide.
+abstract final class Motion {
+  static const easeOut = Cubic(.16, 1, .3, 1);
+  static const spring = Cubic(.34, 1.4, .64, 1);
+  static const slide = Cubic(.3, .8, .4, 1);
 }
 
 /// Fades and slides its child into place once, after [delay] ms.
@@ -167,7 +177,7 @@ class Reveal extends StatelessWidget {
     required this.child,
     this.delay = 0,
     this.dx = 0,
-    this.dy = 14,
+    this.dy = 10,
   });
 
   final Widget child;
@@ -180,11 +190,11 @@ class Reveal extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 450 + delay),
-      curve: Curves.easeOutCubic,
+      curve: Curves.linear,
       builder: (context, t, child) {
         // The delay is the first part of the duration, spent invisible.
         final k = ((t * (450 + delay) - delay) / 450).clamp(0.0, 1.0);
-        final e = Curves.easeOutCubic.transform(k);
+        final e = Motion.easeOut.transform(k);
         return Opacity(
           opacity: e,
           child: Transform.translate(
@@ -225,10 +235,11 @@ class _InteractiveState extends State<_Interactive> {
         onTapDown: (_) => setState(() => _down = true),
         onTapUp: (_) => setState(() => _down = false),
         onTapCancel: () => setState(() => _down = false),
+        // Sink fast under the finger, then spring back.
         child: AnimatedScale(
-          scale: _down ? .94 : 1,
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
+          scale: _down ? .95 : 1,
+          duration: Duration(milliseconds: _down ? 90 : 280),
+          curve: _down ? Curves.easeOut : Motion.spring,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             decoration: BoxDecoration(
@@ -269,7 +280,7 @@ class _BreatheState extends State<_Breathe>
     if (MediaQuery.disableAnimationsOf(context)) {
       _t.stop();
     } else if (!_t.isAnimating) {
-      _t.repeat(reverse: true);
+      _t.repeat(reverse: true, count: 6); // three pulses, then rest
     }
   }
 
@@ -603,34 +614,119 @@ class UpNextList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final day in days) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: dayLabel(day)),
-                  if (_relative(day) case final rel?)
+        for (final (i, day) in days.indexed) ...[
+          Reveal(
+            delay: i * 45,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  child: Text.rich(
                     TextSpan(
-                      text: '  ·  $rel',
-                      style: TextStyle(
-                        color: c.muted,
-                      ),
+                      children: [
+                        TextSpan(text: dayLabel(day)),
+                        if (_relative(day) case final rel?)
+                          TextSpan(
+                            text: '  ·  $rel',
+                            style: TextStyle(
+                              color: c.muted,
+                            ),
+                          ),
+                      ],
                     ),
-                ],
-              ),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: c.ink,
-              ),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: c.ink,
+                    ),
+                  ),
+                ),
+                EventPanel(
+                    events: groups[day]!, onTap: onTap, onDelete: onDelete),
+                const SizedBox(height: 14),
+              ],
             ),
           ),
-          const SizedBox(height: 0),
-          EventPanel(events: groups[day]!, onTap: onTap, onDelete: onDelete),
-          const SizedBox(height: 14),
         ],
       ],
+    );
+  }
+}
+
+/// The journal's bifrost hairline: the gold-to-violet gradient that slowly
+/// slides along the line. On phones and with reduced motion it stays still,
+/// as in Odin's Keep (every shimmer frame is a repaint).
+class Bifrost extends StatefulWidget {
+  const Bifrost({super.key, this.width = 96, this.height = 2});
+
+  final double width, height;
+
+  @override
+  State<Bifrost> createState() => _BifrostState();
+}
+
+class _SlideGradient extends GradientTransform {
+  const _SlideGradient(this.t);
+
+  final double t;
+
+  @override
+  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.translationValues(-bounds.width * t, 0, 0);
+}
+
+class _BifrostState extends State<Bifrost> with SingleTickerProviderStateMixin {
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 18),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.disableAnimationsOf(context) || isPhone(context);
+    if (still) {
+      _t.stop();
+    } else if (!_t.isAnimating) {
+      // Sweeps there and back twice, then rests.
+      _t.repeat(reverse: true, count: 4);
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: widget.width),
+      duration: const Duration(milliseconds: 600),
+      curve: Motion.easeOut,
+      builder: (context, w, _) => AnimatedBuilder(
+        animation: _t,
+        builder: (context, _) => Container(
+          width: w,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            gradient: LinearGradient(
+              tileMode: TileMode.repeated,
+              transform: _SlideGradient(_t.value),
+              colors: [
+                for (final x in [
+                  ...YaiPalette.bifrost,
+                  YaiPalette.bifrost.first
+                ])
+                  x.withValues(alpha: .75),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -58,8 +58,13 @@ Future<T?> showGlassPopup<T>(
       );
       return FadeTransition(
         opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-        child: ScaleTransition(
-          scale: Tween(begin: .94, end: 1.0).animate(curved),
+        // popIn from Odin's Keep: scale .94 and an 8px rise.
+        child: AnimatedBuilder(
+          animation: curved,
+          builder: (context, c) => Transform.translate(
+            offset: Offset(0, 8 * (1 - curved.value)),
+            child: Transform.scale(scale: .94 + .06 * curved.value, child: c),
+          ),
           child: child,
         ),
       );

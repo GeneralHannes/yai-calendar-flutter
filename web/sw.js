@@ -4,7 +4,7 @@
 //  - navigations: network first, fall back to the cached shell
 //  - everything else: stale-while-revalidate (instant, refreshed in background)
 // Bump CACHE to force clients to drop everything cached by an older build.
-const CACHE = 'yai-calendar-v9';
+const CACHE = 'yai-calendar-v10';
 const CORE = [
   './',
   'index.html',
