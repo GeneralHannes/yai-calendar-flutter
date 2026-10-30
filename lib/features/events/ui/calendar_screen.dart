@@ -393,9 +393,8 @@ class _BottomControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    return Row(
+    final nav = Row(
       mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: alignment,
       children: [
         GlassIconButton(
           icon: Icon(CupertinoIcons.chevron_left, color: c.gold),
@@ -427,14 +426,29 @@ class _BottomControls extends StatelessWidget {
           size: _size,
           semanticLabel: 'Next month',
         ),
-        const SizedBox(width: 10),
-        GlassIconButton(
-          icon: Icon(CupertinoIcons.add, color: c.gold),
-          onPressed: onAdd,
-          size: _size,
-          semanticLabel: 'Add event',
-        ),
       ],
+    );
+    final add = GlassIconButton(
+      icon: Icon(CupertinoIcons.add, color: c.gold),
+      onPressed: onAdd,
+      size: _size,
+      semanticLabel: 'Add event',
+    );
+
+    // Compact: previous / today / next centred, add on the right edge.
+    if (alignment == MainAxisAlignment.center) {
+      return Row(
+        children: [
+          const Expanded(child: SizedBox()),
+          nav,
+          Expanded(child: Align(alignment: Alignment.centerRight, child: add)),
+        ],
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: alignment,
+      children: [nav, const SizedBox(width: 10), add],
     );
   }
 }
