@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/database/app_database.dart';
 import 'core/environment.dart';
 import 'core/network/api_client.dart';
+import 'core/platform/web_insets.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/theme/yai_theme.dart';
 import 'features/events/calendar_controller.dart';
@@ -122,6 +123,26 @@ class _CalendarAppState extends State<CalendarApp> {
       theme: YaiPalette.light.toTheme(),
       darkTheme: YaiPalette.dark.toTheme(),
       themeMode: ThemeMode.system,
+      // In a phone's browser, apply the notch / home-indicator insets the
+      // native app gets for free, so both lay out identically.
+      builder: (context, child) {
+        if (!kIsWeb) return child!;
+        final mq = MediaQuery.of(context);
+        final web = webSafeInsets();
+        EdgeInsets grow(EdgeInsets a) => EdgeInsets.fromLTRB(
+              a.left < web.left ? web.left : a.left,
+              a.top < web.top ? web.top : a.top,
+              a.right < web.right ? web.right : a.right,
+              a.bottom < web.bottom ? web.bottom : a.bottom,
+            );
+        return MediaQuery(
+          data: mq.copyWith(
+            padding: grow(mq.padding),
+            viewPadding: grow(mq.viewPadding),
+          ),
+          child: child!,
+        );
+      },
       home: controller != null && sync != null
           ? CalendarScreen(
               controller: controller,

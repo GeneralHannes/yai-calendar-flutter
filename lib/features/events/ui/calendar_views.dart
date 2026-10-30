@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/platform/device.dart';
 import '../../../core/theme/yai_theme.dart';
 import '../data/calendar_event.dart';
 import 'date_format.dart';
@@ -182,7 +183,7 @@ class _DayCell extends StatelessWidget {
     final isToday = sameDay(day, DateTime.now());
     final isSelected = sameDay(day, selected);
     // Roomier desktop cells get slightly larger type.
-    final scale = MediaQuery.sizeOf(context).width >= 900 ? 1.25 : 1.0;
+    final scale = useDesktopLayout(context) ? 1.25 : 1.0;
 
     // Today: gold disc. Selected: accent ring. Otherwise plain.
     final disc = isToday ? c.gold : null;

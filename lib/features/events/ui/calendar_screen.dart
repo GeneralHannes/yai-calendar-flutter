@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
+import '../../../core/platform/device.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../../core/theme/yai_theme.dart';
 import '../calendar_controller.dart';
@@ -109,7 +110,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       listenable: _c,
       builder: (context, _) {
         final month = _c.month;
-        final wide = MediaQuery.sizeOf(context).width >= 900;
+        final wide = useDesktopLayout(context);
 
         final grid = MonthGrid(
           month: month,

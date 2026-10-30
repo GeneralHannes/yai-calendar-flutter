@@ -2,6 +2,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
+import '../../../core/platform/device.dart';
 import '../../../core/theme/yai_theme.dart';
 import '../data/calendar_event.dart';
 import 'calendar_views.dart' show SectionLabel;
@@ -16,7 +17,7 @@ Future<T?> showGlassPopup<T>(
 }) {
   final content = Material(type: MaterialType.transparency, child: child);
 
-  if (MediaQuery.sizeOf(context).width < 700) {
+  if (useSheet(context)) {
     return GlassModalSheet.show<T>(
       context: context,
       initialState: state,
