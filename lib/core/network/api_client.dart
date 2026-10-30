@@ -35,6 +35,7 @@ class ApiClient {
     http.Client? client,
     String baseUrl = Environment.apiBaseUrl,
     this.tokenProvider,
+    this.headers = const {},
     this.timeout = const Duration(seconds: 20),
   })  : _client = client ?? http.Client(),
         _base = Uri.parse(baseUrl);
@@ -42,6 +43,9 @@ class ApiClient {
   final http.Client _client;
   final Uri _base;
   final TokenProvider? tokenProvider;
+
+  /// Sent with every request (API keys and the like).
+  final Map<String, String> headers;
   final Duration timeout;
 
   /// Bodies larger than this are decoded off the UI isolate to avoid jank
@@ -54,8 +58,13 @@ class ApiClient {
   Future<Object?> put(String path, Object body) =>
       _send('PUT', path, body: body);
 
-  Future<Object?> post(String path, Object body) =>
-      _send('POST', path, body: body);
+  Future<Object?> post(
+    String path,
+    Object body, {
+    Map<String, String>? query,
+    Map<String, String>? headers,
+  }) =>
+      _send('POST', path, query: query, body: body, extra: headers);
 
   Future<Object?> delete(String path) => _send('DELETE', path);
 
@@ -64,9 +73,12 @@ class ApiClient {
     String path, {
     Map<String, String>? query,
     Object? body,
+    Map<String, String>? extra,
   }) async {
     final req = http.Request(method, _resolve(path, query))
-      ..headers['Accept'] = 'application/json';
+      ..headers['Accept'] = 'application/json'
+      ..headers.addAll(headers)
+      ..headers.addAll(extra ?? const {});
 
     final token = await tokenProvider?.call();
     if (token != null) req.headers['Authorization'] = 'Bearer $token';

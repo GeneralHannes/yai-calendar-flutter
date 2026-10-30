@@ -32,8 +32,14 @@ class SyncEngine {
   SyncEngine({
     required EventLocalDataSource local,
     required EventRemoteDataSource remote,
+    this.pollEvery,
   })  : _local = local,
         _remote = remote;
+
+  /// When set, also syncs on this interval so changes other people make show
+  /// up without a pull-to-refresh.
+  final Duration? pollEvery;
+  Timer? _poll;
 
   final EventLocalDataSource _local;
   final EventRemoteDataSource _remote;
@@ -59,6 +65,8 @@ class SyncEngine {
 
   void start() {
     _lifecycle = AppLifecycleListener(onResume: requestSync);
+    final every = pollEvery;
+    if (every != null) _poll = Timer.periodic(every, (_) => requestSync());
     requestSync();
   }
 
@@ -164,6 +172,7 @@ class SyncEngine {
     _disposed = true;
     _debounce?.cancel();
     _retry?.cancel();
+    _poll?.cancel();
     _lifecycle?.dispose();
     status.dispose();
     dataRevision.dispose();

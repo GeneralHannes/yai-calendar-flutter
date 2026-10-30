@@ -8,7 +8,7 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Lightweight offline-first calendar.">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#1E2030">
 
   <!-- iOS: installed-to-home-screen behaviour -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -24,18 +24,20 @@
 
   <style>
     /* Paint the app background before Flutter boots: no white flash. */
-    html, body { margin: 0; height: 100%; background: #000000; }
+    html, body { margin: 0; height: 100%; background: #1E2030; }
     #boot {
       position: fixed; inset: 0; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 14px;
-      background: #000000;
-      color: #FF453A; font: 600 15px/1 -apple-system, system-ui, sans-serif; letter-spacing: .04em;
+      background: radial-gradient(900px 600px at 0% -10%, rgba(130,170,255,.18), transparent 60%), #1E2030;
+      color: #D4AF37; font: 14px/1 Georgia, serif; letter-spacing: .16em;
       transition: opacity .3s ease;
     }
+    #boot i { display: block; width: 120px; height: 2px; border-radius: 2px;
+      background: linear-gradient(90deg,#D4AF37,#D98A3C,#8FA6BF,#8B7BC4,#5A6FC0); opacity: .7; }
   </style>
 </head>
 <body>
-  <div id="boot">Yai Calendar</div>
+  <div id="boot">YAI CALENDAR<i></i></div>
   <script>
     // Fade the splash out once Flutter paints its first frame.
     window.addEventListener('flutter-first-frame', function () {

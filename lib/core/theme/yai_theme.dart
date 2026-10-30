@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Colours in the style of Apple Calendar. Everything else in the UI reads
-/// from here, so changing the look means changing these values. `gold` is the
-/// tint (today, buttons, links), `act` the default calendar colour (events).
+/// Colours from the Odin Journal design (Tokyo-Night moon for dark, its light
+/// counterpart for light, gold as the signature accent). Everything else in
+/// the UI reads from here, so changing the look means changing these values.
 @immutable
 class YaiPalette {
   const YaiPalette({
@@ -29,45 +29,54 @@ class YaiPalette {
   /// (today, titles, section labels).
   final Color act, bad, warn, gold;
 
-  // Apple Calendar: pure black / white pages, system grey text, red tint
-  // (today, buttons) and calendar blue for events.
   static const dark = YaiPalette(
     brightness: Brightness.dark,
-    bg1: Color(0xFF000000),
-    bg2: Color(0xFF1C1C1E),
-    ink: Color(0xFFFFFFFF),
-    muted: Color(0xFF8E8E93),
-    act: Color(0xFF0A84FF),
-    bad: Color(0xFFFF453A),
-    warn: Color(0xFFFF453A),
-    gold: Color(0xFFFF453A),
+    bg1: Color(0xFF1E2030),
+    bg2: Color(0xFF222436),
+    ink: Color(0xFFC8D3F5),
+    muted: Color(0xFF828BB8),
+    act: Color(0xFF82AAFF),
+    bad: Color(0xFFFF757F),
+    warn: Color(0xFFFF966C),
+    gold: Color(0xFFD4AF37),
   );
 
   static const light = YaiPalette(
     brightness: Brightness.light,
-    bg1: Color(0xFFFFFFFF),
-    bg2: Color(0xFFF2F2F7),
-    ink: Color(0xFF000000),
-    muted: Color(0xFF8E8E93),
-    act: Color(0xFF007AFF),
-    bad: Color(0xFFFF3B30),
-    warn: Color(0xFFFF3B30),
-    gold: Color(0xFFFF3B30),
+    bg1: Color(0xFFE1E2E7),
+    bg2: Color(0xFFF1F2F7),
+    ink: Color(0xFF343B58),
+    muted: Color(0xFF5F6A9C),
+    act: Color(0xFF2E7DE9),
+    bad: Color(0xFFD1243F),
+    warn: Color(0xFFB45309),
+    gold: Color(0xFF9A7608),
   );
 
-  /// App-wide typeface: the platform's own (San Francisco on Apple devices).
-  static const String? fontFamily = null;
+  /// The journal's `--bifrost` hairline: gold to violet.
+  static const bifrost = [
+    Color(0xFFD4AF37),
+    Color(0xFFD98A3C),
+    Color(0xFF8FA6BF),
+    Color(0xFF8B7BC4),
+    Color(0xFF5A6FC0),
+  ];
+
+  /// App-wide typeface: Libron, bundled in assets/fonts.
+  static const fontFamily = 'Libron';
 
   static YaiPalette of(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? dark : light;
 
   ThemeData toTheme() {
     final scheme = ColorScheme.fromSeed(
-      seedColor: gold,
+      seedColor: act,
       brightness: brightness,
     ).copyWith(
-      primary: gold,
-      onPrimary: Colors.white,
+      primary: act,
+      onPrimary: brightness == Brightness.dark
+          ? const Color(0xFF10121F)
+          : Colors.white,
       surface: bg2,
       onSurface: ink,
       error: bad,

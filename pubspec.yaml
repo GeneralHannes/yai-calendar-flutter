@@ -17,6 +17,7 @@ dependencies:
   sqflite_common_ffi_web: ^1.2.0
   cupertino_icons: ^2.0.0
   liquid_glass_widgets: ^1.16.1
+  shared_preferences: ^2.5.6
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +27,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Libron (OFL) by Nico Verbruggen — https://github.com/nicoverbruggen/libron
+  fonts:
+    - family: Libron
+      fonts:
+        - asset: assets/fonts/Libron-Regular.ttf
+        - asset: assets/fonts/Libron-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Libron-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Libron-BoldItalic.ttf
+          weight: 700
+          style: italic

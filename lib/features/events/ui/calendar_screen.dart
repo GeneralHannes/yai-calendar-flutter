@@ -17,10 +17,16 @@ class CalendarScreen extends StatefulWidget {
     super.key,
     required this.controller,
     required this.sync,
+    this.code,
+    this.onLeave,
   });
 
   final CalendarController controller;
   final SyncEngine sync;
+
+  /// The shared calendar's code, when the app is in shared mode.
+  final String? code;
+  final VoidCallback? onLeave;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -71,6 +77,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return _c.upcoming.where((e) => e.end.isAfter(now)).take(12).toList();
   }
 
+  Widget? _shareButton(YaiPalette c) {
+    final code = widget.code, leave = widget.onLeave;
+    if (code == null || leave == null) return null;
+    return IconButton(
+      tooltip: 'Calendar code',
+      onPressed: () => showSharingSheet(context, code: code, onLeave: leave),
+      icon: Icon(CupertinoIcons.person_2, color: c.gold),
+    );
+  }
+
   Future<void> _add() async {
     final event = await showEventEditor(context, day: _selected);
     if (event != null) await _c.save(event);
@@ -117,8 +133,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Text(
               dayLabel(_selected),
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontSize: 22,
                 color: c.ink,
               ),
             ),
@@ -193,6 +208,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       children: [
                         _DesktopHeader(
                           month: month,
+                          trailing: _shareButton(c),
                           onPrev: () => _shiftMonth(-1),
                           onNext: () => _shiftMonth(1),
                           onToday: _goToday,
@@ -230,7 +246,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: ListView(
                       padding: EdgeInsets.fromLTRB(16, top, 16, bottom),
                       children: [
-                        _MonthTitle(month: month),
+                        _MonthTitle(month: month, trailing: _shareButton(c)),
                         const SizedBox(height: 12),
                         grid,
                         const SizedBox(height: 20),
@@ -252,6 +268,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 class _DesktopHeader extends StatelessWidget {
   const _DesktopHeader({
     required this.month,
+    this.trailing,
     required this.onPrev,
     required this.onNext,
     required this.onToday,
@@ -259,6 +276,7 @@ class _DesktopHeader extends StatelessWidget {
   });
 
   final DateTime month;
+  final Widget? trailing;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onToday;
@@ -276,7 +294,7 @@ class _DesktopHeader extends StatelessWidget {
               children: [
                 TextSpan(
                   text: monthNames[month.month - 1],
-                  style: TextStyle(color: c.ink, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: c.ink),
                 ),
                 TextSpan(
                   text: ' ${month.year}',
@@ -284,9 +302,15 @@ class _DesktopHeader extends StatelessWidget {
                 ),
               ],
             ),
-            style: const TextStyle(fontSize: 38, height: 1.1),
+            style: const TextStyle(
+              fontFamily: YaiPalette.fontFamily,
+              fontSize: 40,
+              height: 1.1,
+            ),
           ),
         ),
+        if (trailing != null) trailing!,
+        const SizedBox(width: 8),
         _BottomControls(
           alignment: MainAxisAlignment.end,
           onPrev: onPrev,
@@ -299,37 +323,51 @@ class _DesktopHeader extends StatelessWidget {
   }
 }
 
-/// Phone title: the year in the tint colour above a large month name, as at
-/// the top of Apple's month view.
+/// Phone title: the year in gold above a large serif month name.
 class _MonthTitle extends StatelessWidget {
-  const _MonthTitle({required this.month});
+  const _MonthTitle({required this.month, this.trailing});
 
   final DateTime month;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    return Column(
+    final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           '${month.year}',
           style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w500,
+            fontSize: 15,
+            letterSpacing: 1.6,
             color: c.gold,
           ),
         ),
         Text(
           monthNames[month.month - 1],
           style: TextStyle(
-            fontSize: 34,
+            fontSize: 36,
             height: 1.15,
-            fontWeight: FontWeight.w700,
             color: c.ink,
           ),
         ),
+        const SizedBox(height: 8),
+        Container(
+          width: 96,
+          height: 2,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            gradient: LinearGradient(colors: [
+              for (final x in YaiPalette.bifrost) x.withValues(alpha: .7),
+            ]),
+          ),
+        ),
       ],
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [Expanded(child: title), if (trailing != null) trailing!],
     );
   }
 }
@@ -375,8 +413,9 @@ class _BottomControls extends StatelessWidget {
           child: Text(
             'Today',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontFamily: YaiPalette.fontFamily,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
               color: c.gold,
             ),
           ),
@@ -400,11 +439,44 @@ class _BottomControls extends StatelessWidget {
   }
 }
 
-/// Plain page background (Apple Calendar is flat black / white).
+/// Page backdrop: the glass controls refract this, so it has a little colour
+/// variation: a quiet gradient, a faint blue wash top-left, gold bottom-right.
 class _Backdrop extends StatelessWidget {
   const _Backdrop();
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-      color: YaiPalette.of(context).bg1, child: const SizedBox.expand());
+  Widget build(BuildContext context) {
+    final c = YaiPalette.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            c.bg1,
+            Color.alphaBlend(c.act.withValues(alpha: .06), c.bg1)
+          ],
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(-1, -1.1),
+            radius: 1.2,
+            colors: [c.act.withValues(alpha: .16), Colors.transparent],
+          ),
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: const Alignment(1.1, 1.1),
+              radius: 1.0,
+              colors: [c.gold.withValues(alpha: .08), Colors.transparent],
+            ),
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+  }
 }

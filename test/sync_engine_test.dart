@@ -19,7 +19,8 @@ void main() {
   late EventLocalDataSource local;
 
   setUp(() async {
-    db = await AppDatabase.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
+    db = await AppDatabase.open(
+        path: inMemoryDatabasePath, factory: databaseFactoryFfi);
     local = EventLocalDataSource(db.db);
   });
 
@@ -27,7 +28,8 @@ void main() {
 
   SyncEngine engineWith(MockClient client) => SyncEngine(
         local: local,
-        remote: EventRemoteDataSource(ApiClient(client: client, baseUrl: 'https://x.test')),
+        remote: EventRemoteDataSource(
+            ApiClient(client: client, baseUrl: 'https://x.test')),
       );
 
   test('pushes pending writes, pulls deltas and stores the cursor', () async {
@@ -68,14 +70,16 @@ void main() {
     expect(sinceSeen, isNull);
     expect(await local.pending(), isEmpty);
     expect(await local.readCursor(), 'c1');
-    final month = await local.inRange(DateTime.utc(2026, 11), DateTime.utc(2026, 12));
+    final month =
+        await local.inRange(DateTime.utc(2026, 11), DateTime.utc(2026, 12));
     expect(month.map((e) => e.title), ['Mine', 'From server']);
     expect(engine.status.value.phase, SyncPhase.idle);
     engine.dispose();
   });
 
   test('offline keeps local writes pending and reports offline', () async {
-    final engine = engineWith(MockClient((_) async => throw http.ClientException('no route')));
+    final engine = engineWith(
+        MockClient((_) async => throw http.ClientException('no route')));
     await local.upsertLocal(CalendarEvent.create(
       title: 'Offline',
       start: DateTime.utc(2026, 11, 1),

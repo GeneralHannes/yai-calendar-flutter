@@ -16,7 +16,7 @@ Map<DateTime, List<CalendarEvent>> groupByDay(List<CalendarEvent> events) {
   return out;
 }
 
-/// Small grey caps heading, like the section headers in Apple's lists.
+/// Journal-style section heading: small gold caps with wide tracking.
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key});
 
@@ -28,17 +28,17 @@ class SectionLabel extends StatelessWidget {
     return Text(
       text.toUpperCase(),
       style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: .6,
-        color: c.muted,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.3,
+        color: c.gold,
       ),
     );
   }
 }
 
-/// Month grid, Monday first, in the manner of Apple Calendar: no boxes, just
-/// hairlines between weeks. Today is a red disc, the selected day a dark one.
+/// Month grid, Monday first: no boxes, just hairlines between weeks. Today is
+/// a gold disc, the selected day a ringed one.
 /// Each day shows its event titles as small tinted chips; extra events
 /// collapse into "+N".
 class MonthGrid extends StatelessWidget {
@@ -184,15 +184,10 @@ class _DayCell extends StatelessWidget {
     // Roomier desktop cells get slightly larger type.
     final scale = MediaQuery.sizeOf(context).width >= 900 ? 1.25 : 1.0;
 
-    // Today: red disc. Selected: dark disc. Otherwise plain.
-    final disc = isToday
-        ? c.gold
-        : isSelected
-            ? c.ink
-            : null;
-    final numberColor = disc != null
-        ? (isToday ? Colors.white : c.bg1)
-        : (inMonth ? c.ink : c.muted.withValues(alpha: .6));
+    // Today: gold disc. Selected: accent ring. Otherwise plain.
+    final disc = isToday ? c.gold : null;
+    final numberColor =
+        isToday ? c.bg1 : (inMonth ? c.ink : c.muted.withValues(alpha: .6));
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -209,12 +204,13 @@ class _DayCell extends StatelessWidget {
                   minHeight: 26 * scale,
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: disc == null
-                    ? null
-                    : BoxDecoration(
-                        color: disc,
-                        borderRadius: BorderRadius.circular(16 * scale),
-                      ),
+                decoration: BoxDecoration(
+                  color: disc,
+                  borderRadius: BorderRadius.circular(16 * scale),
+                  border: isSelected && !isToday
+                      ? Border.all(color: c.act, width: 1.5)
+                      : null,
+                ),
                 // widthFactor keeps the disc hugging the digits.
                 child: Center(
                   widthFactor: 1,
@@ -223,8 +219,7 @@ class _DayCell extends StatelessWidget {
                     '${day.day}',
                     style: TextStyle(
                       fontSize: 16 * scale,
-                      fontWeight:
-                          disc != null ? FontWeight.w600 : FontWeight.w400,
+                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
                       color: numberColor,
                     ),
                   ),
@@ -335,7 +330,7 @@ class EventTile extends StatelessWidget {
         color: c.bad,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
+        child: Icon(Icons.delete_outline, color: c.bg1),
       ),
       child: InkWell(
         onTap: onTap,

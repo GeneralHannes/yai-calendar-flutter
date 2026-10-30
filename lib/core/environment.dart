@@ -10,3 +10,17 @@ class Environment {
     defaultValue: 'https://api.yourdomain.com',
   );
 }
+
+/// Shared-calendar backend (Supabase). Both are public values: access is
+/// limited by row level security and the calendar code, not by hiding these.
+///
+///   flutter build web --dart-define=SUPABASE_URL=https://xyz.supabase.co \
+///     --dart-define=SUPABASE_ANON_KEY=eyJ...
+class SharedConfig {
+  const SharedConfig._();
+
+  static const String url = String.fromEnvironment('SUPABASE_URL');
+  static const String anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+  static bool get configured => url.isNotEmpty && anonKey.isNotEmpty;
+}

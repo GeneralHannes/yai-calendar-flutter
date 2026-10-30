@@ -158,4 +158,10 @@ class EventLocalDataSource {
   /// Forces a full re-download on next sync (e.g. after logout/login).
   Future<void> resetCursor() =>
       _db.delete('sync_meta', where: 'key = ?', whereArgs: [_cursorKey]);
+
+  /// Forgets everything (used when switching to another calendar code).
+  Future<void> clearAll() => _db.transaction((txn) async {
+        await txn.delete(_table);
+        await txn.delete('sync_meta');
+      });
 }

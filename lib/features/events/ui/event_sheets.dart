@@ -1,8 +1,10 @@
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../../../core/theme/yai_theme.dart';
 import '../data/calendar_event.dart';
+import 'calendar_views.dart' show SectionLabel;
 import 'date_format.dart';
 
 /// Shows [child] as glass chrome: a bottom sheet on phones; on wide screens a
@@ -456,4 +458,67 @@ class _DetailCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The calendar's code, with copy and "leave this calendar".
+Future<void> showSharingSheet(
+  BuildContext context, {
+  required String code,
+  required VoidCallback onLeave,
+}) {
+  return showGlassPopup<void>(
+    context,
+    state: GlassSheetState.half,
+    child: Builder(
+      builder: (context) {
+        final c = YaiPalette.of(context);
+        final pretty = [
+          for (var i = 0; i < code.length; i += 4)
+            code.substring(i, i + 4 > code.length ? code.length : i + 4),
+        ].join('-');
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SectionLabel('Shared calendar'),
+              const SizedBox(height: 10),
+              SelectableText(
+                pretty,
+                style: TextStyle(fontSize: 24, letterSpacing: 1, color: c.gold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Everyone who enters this code sees and edits the same events.',
+                style: TextStyle(color: c.muted),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: pretty));
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: c.gold,
+                  foregroundColor: c.bg1,
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: const Text('Copy code'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  onLeave();
+                },
+                style: TextButton.styleFrom(foregroundColor: c.bad),
+                child: const Text('Leave this calendar'),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
 }
