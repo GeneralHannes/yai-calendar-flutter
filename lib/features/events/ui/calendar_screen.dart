@@ -38,7 +38,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   CalendarController get _c => widget.controller;
 
+  int _dir = 1;
+
   void _shiftMonth(int delta) {
+    _dir = delta;
     final m = _c.month;
     _c.showMonth(DateTime(m.year, m.month + delta));
   }
@@ -112,43 +115,79 @@ class _CalendarScreenState extends State<CalendarScreen> {
         final month = _c.month;
         final wide = useDesktopLayout(context);
 
-        final grid = MonthGrid(
-          month: month,
-          events: _c.events,
-          selected: _selected,
-          onDayTap: _select,
-        );
+        final grid = _MonthSwitch(
+            month: month,
+            dir: _dir,
+            child: MonthGrid(
+              month: month,
+              events: _c.events,
+              selected: _selected,
+              onDayTap: _select,
+            ));
 
-        final gridFill = MonthGrid(
-          fill: true,
-          month: month,
-          events: _c.events,
-          selected: _selected,
-          onDayTap: _select,
-        );
+        final gridFill = _MonthSwitch(
+            month: month,
+            dir: _dir,
+            child: MonthGrid(
+              fill: true,
+              month: month,
+              events: _c.events,
+              selected: _selected,
+              onDayTap: _select,
+            ));
 
         final selectedEvents = _onSelected();
-        final selectedSection = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              dayLabel(_selected),
-              style: TextStyle(
-                fontSize: 22,
-                color: c.ink,
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (selectedEvents.isEmpty)
-              Text('No events.', style: TextStyle(color: c.muted))
-            else
-              EventPanel(
-                events: selectedEvents,
-                onTap: _edit,
-                onDelete: _c.delete,
-              ),
-          ],
-        );
+        final selectedSection = _DaySwitch(
+            day: _selected,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (wide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${_selected.day}',
+                        style: TextStyle(
+                          fontFamily: YaiPalette.fontFamily,
+                          fontSize: 72,
+                          height: 1,
+                          color: c.gold,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SectionLabel(weekdayNames[_selected.weekday - 1]),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${monthNames[_selected.month - 1]} ${_selected.year}',
+                              style: TextStyle(fontSize: 22, color: c.ink),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    dayLabel(_selected),
+                    style: TextStyle(fontSize: 22, color: c.ink),
+                  ),
+                const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                if (selectedEvents.isEmpty)
+                  Text('No events.', style: TextStyle(color: c.muted))
+                else
+                  EventPanel(
+                    events: selectedEvents,
+                    onTap: _edit,
+                    onDelete: _c.delete,
+                  ),
+              ],
+            ));
 
         final upNextSection = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -207,34 +246,50 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _DesktopHeader(
-                          month: month,
-                          trailing: _shareButton(c),
-                          onPrev: () => _shiftMonth(-1),
-                          onNext: () => _shiftMonth(1),
-                          onToday: _goToday,
-                          onAdd: _add,
-                        ),
+                        Reveal(
+                            dy: -10,
+                            child: _DesktopHeader(
+                              month: month,
+                              trailing: _shareButton(c),
+                              onPrev: () => _shiftMonth(-1),
+                              onNext: () => _shiftMonth(1),
+                              onToday: _goToday,
+                              onAdd: _add,
+                            )),
                         const SizedBox(height: 24),
                         Expanded(
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // The calendar fills the window.
-                              Expanded(child: gridFill),
+                              Expanded(
+                                  child: Reveal(delay: 100, child: gridFill)),
                               const SizedBox(width: 32),
                               // Side panel: the selected date, then Up next.
                               SizedBox(
-                                width: (MediaQuery.sizeOf(context).width * .27)
-                                    .clamp(340.0, 460.0),
-                                child: ListView(
-                                  padding: EdgeInsets.zero,
-                                  children: [
-                                    selectedSection,
-                                    const SizedBox(height: 28),
-                                    upNextSection,
-                                  ],
-                                ),
+                                width: (MediaQuery.sizeOf(context).width * .3)
+                                    .clamp(380.0, 560.0),
+                                // Roomy window, so the panel reads larger.
+                                child: MediaQuery(
+                                    data: MediaQuery.of(context).copyWith(
+                                      textScaler: const TextScaler.linear(1.2),
+                                    ),
+                                    child: ListView(
+                                      padding: EdgeInsets.zero,
+                                      children: [
+                                        Reveal(
+                                            delay: 220,
+                                            dx: 24,
+                                            dy: 0,
+                                            child: selectedSection),
+                                        const SizedBox(height: 28),
+                                        Reveal(
+                                            delay: 340,
+                                            dx: 24,
+                                            dy: 0,
+                                            child: upNextSection),
+                                      ],
+                                    )),
                               ),
                             ],
                           ),
@@ -247,13 +302,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: ListView(
                       padding: EdgeInsets.fromLTRB(16, top, 16, bottom),
                       children: [
-                        _MonthTitle(month: month, trailing: _shareButton(c)),
+                        Reveal(
+                          child: _MonthTitle(
+                              month: month, trailing: _shareButton(c)),
+                        ),
                         const SizedBox(height: 12),
-                        grid,
+                        Reveal(delay: 80, child: grid),
                         const SizedBox(height: 20),
-                        selectedSection,
+                        Reveal(delay: 200, child: selectedSection),
                         const SizedBox(height: 28),
-                        upNextSection,
+                        Reveal(delay: 300, child: upNextSection),
                       ],
                     ),
                   ),
@@ -324,6 +382,76 @@ class _DesktopHeader extends StatelessWidget {
   }
 }
 
+/// Slides the month grid in from the side it was navigated to.
+class _MonthSwitch extends StatelessWidget {
+  const _MonthSwitch({
+    required this.month,
+    required this.dir,
+    required this.child,
+  });
+
+  final DateTime month;
+  final int dir;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 340),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, anim) => FadeTransition(
+        opacity: anim,
+        child: SlideTransition(
+          position: Tween(begin: Offset(.07 * dir, 0), end: Offset.zero)
+              .animate(anim),
+          child: child,
+        ),
+      ),
+      child: KeyedSubtree(
+        key: ValueKey('${month.year}-${month.month}'),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Cross-fades the selected-day panel with a small upward slide.
+class _DaySwitch extends StatelessWidget {
+  const _DaySwitch({required this.day, required this.child});
+
+  final DateTime day;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        switchInCurve: Curves.easeOutCubic,
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween(begin: const Offset(0, .04), end: Offset.zero)
+                .animate(anim),
+            child: child,
+          ),
+        ),
+        layoutBuilder: (current, previous) => Stack(
+          alignment: Alignment.topCenter,
+          children: [...previous, if (current != null) current],
+        ),
+        child: KeyedSubtree(key: ValueKey(day), child: child),
+      ),
+    );
+  }
+}
+
 /// Phone title: the year in gold above a large serif month name.
 class _MonthTitle extends StatelessWidget {
   const _MonthTitle({required this.month, this.trailing});
@@ -354,16 +482,22 @@ class _MonthTitle extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          width: 96,
-          height: 2,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2),
-            gradient: LinearGradient(colors: [
-              for (final x in YaiPalette.bifrost) x.withValues(alpha: .7),
-            ]),
-          ),
-        ),
+        TweenAnimationBuilder<double>(
+            key: ValueKey(month.month),
+            tween: Tween(begin: 0, end: 96),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            builder: (context, w, _) => Container(
+                  width: w,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    gradient: LinearGradient(colors: [
+                      for (final x in YaiPalette.bifrost)
+                        x.withValues(alpha: .7),
+                    ]),
+                  ),
+                )),
       ],
     );
     return Row(

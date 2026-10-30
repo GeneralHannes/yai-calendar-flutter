@@ -160,6 +160,149 @@ class _FadeIn extends StatelessWidget {
   }
 }
 
+/// Fades and slides its child into place once, after [delay] ms.
+class Reveal extends StatelessWidget {
+  const Reveal({
+    super.key,
+    required this.child,
+    this.delay = 0,
+    this.dx = 0,
+    this.dy = 14,
+  });
+
+  final Widget child;
+  final int delay;
+  final double dx, dy;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 450 + delay),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) {
+        // The delay is the first part of the duration, spent invisible.
+        final k = ((t * (450 + delay) - delay) / 450).clamp(0.0, 1.0);
+        final e = Curves.easeOutCubic.transform(k);
+        return Opacity(
+          opacity: e,
+          child: Transform.translate(
+            offset: Offset(dx * (1 - e), dy * (1 - e)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+/// Hover tint and press-down scale for a tappable cell.
+class _Interactive extends StatefulWidget {
+  const _Interactive({required this.onTap, required this.child});
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_Interactive> createState() => _InteractiveState();
+}
+
+class _InteractiveState extends State<_Interactive> {
+  bool _hover = false, _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = YaiPalette.of(context);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _down = true),
+        onTapUp: (_) => setState(() => _down = false),
+        onTapCancel: () => setState(() => _down = false),
+        child: AnimatedScale(
+          scale: _down ? .94 : 1,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            decoration: BoxDecoration(
+              color: _hover ? c.act.withValues(alpha: .09) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A soft glow that slowly swells and fades behind today's disc.
+class _Breathe extends StatefulWidget {
+  const _Breathe(
+      {required this.color, required this.radius, required this.child});
+
+  final Color color;
+  final double radius;
+  final Widget child;
+
+  @override
+  State<_Breathe> createState() => _BreatheState();
+}
+
+class _BreatheState extends State<_Breathe>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _t.stop();
+    } else if (!_t.isAnimating) {
+      _t.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _t,
+      child: widget.child,
+      builder: (context, child) {
+        final v = Curves.easeInOut.transform(_t.value);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.radius),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: .12 + .28 * v),
+                blurRadius: 4 + 10 * v,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
 class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.day,
@@ -190,8 +333,7 @@ class _DayCell extends StatelessWidget {
     final numberColor =
         isToday ? c.bg1 : (inMonth ? c.ink : c.muted.withValues(alpha: .6));
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return _Interactive(
       onTap: () => onTap(day),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(2, 5, 2, 2),
@@ -199,29 +341,34 @@ class _DayCell extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(
-              child: Container(
-                constraints: BoxConstraints(
-                  minWidth: 26 * scale,
-                  minHeight: 26 * scale,
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: disc,
-                  borderRadius: BorderRadius.circular(16 * scale),
-                  border: isSelected && !isToday
-                      ? Border.all(color: c.act, width: 1.5)
-                      : null,
-                ),
-                // widthFactor keeps the disc hugging the digits.
-                child: Center(
-                  widthFactor: 1,
-                  heightFactor: 1,
-                  child: Text(
-                    '${day.day}',
-                    style: TextStyle(
-                      fontSize: 16 * scale,
-                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-                      color: numberColor,
+              child: _glow(
+                c,
+                scale,
+                isToday,
+                Container(
+                  constraints: BoxConstraints(
+                    minWidth: 26 * scale,
+                    minHeight: 26 * scale,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: disc,
+                    borderRadius: BorderRadius.circular(16 * scale),
+                    border: isSelected && !isToday
+                        ? Border.all(color: c.act, width: 1.5)
+                        : null,
+                  ),
+                  // widthFactor keeps the disc hugging the digits.
+                  child: Center(
+                    widthFactor: 1,
+                    heightFactor: 1,
+                    child: Text(
+                      '${day.day}',
+                      style: TextStyle(
+                        fontSize: 16 * scale,
+                        fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                        color: numberColor,
+                      ),
                     ),
                   ),
                 ),
@@ -234,6 +381,11 @@ class _DayCell extends StatelessWidget {
       ),
     );
   }
+
+  Widget _glow(YaiPalette c, double scale, bool isToday, Widget child) =>
+      isToday
+          ? _Breathe(color: c.gold, radius: 16 * scale, child: child)
+          : child;
 
   Widget _titles(YaiPalette c, double scale) {
     if (events.isEmpty) return const SizedBox.shrink();
@@ -474,6 +626,7 @@ class UpNextList extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 0),
           EventPanel(events: groups[day]!, onTap: onTap, onDelete: onDelete),
           const SizedBox(height: 14),
         ],
