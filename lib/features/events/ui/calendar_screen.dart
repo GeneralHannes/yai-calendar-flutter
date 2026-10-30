@@ -114,8 +114,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
         final selectedSection = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _DayHero(day: _selected, count: selectedEvents.length),
-            const SizedBox(height: 12),
+            Text(
+              dayLabel(_selected),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: c.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
             if (selectedEvents.isEmpty)
               Text('No events.', style: TextStyle(color: c.muted))
             else
@@ -141,7 +148,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         final safe = MediaQuery.paddingOf(context);
         // Clear the glass bar on top (44 + a gap) and the bottom controls
         // (52 + padding) so nothing ends up underneath them.
-        final top = safe.top + 44 + 16;
+        final top = safe.top + 12;
         final bottom = safe.bottom + 100;
 
         return Material(
@@ -151,40 +158,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             edgeToEdge: true,
             // Top: just the month, in the journal's gold caps over its
             // hairline. Every control lives at the bottom, in thumb reach.
-            appBar: wide
-                ? null
-                : GlassAppBar(
-                    title: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${monthNames[month.month - 1]} ${month.year}'
-                              .toUpperCase(),
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontFamily: YaiPalette.fontFamily,
-                            fontSize: 14,
-                            letterSpacing: 1.6,
-                            color: c.gold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 96,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            gradient: LinearGradient(
-                              colors: [
-                                for (final x in YaiPalette.bifrost)
-                                  x.withValues(alpha: .75),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            appBar: null,
             bottomBar: wide
                 ? null
                 : SafeArea(
@@ -256,6 +230,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: ListView(
                       padding: EdgeInsets.fromLTRB(16, top, 16, bottom),
                       children: [
+                        _MonthTitle(month: month),
+                        const SizedBox(height: 12),
                         grid,
                         const SizedBox(height: 20),
                         selectedSection,
@@ -292,46 +268,23 @@ class _DesktopHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text.rich(
+          child: Text.rich(
+            TextSpan(
+              children: [
                 TextSpan(
-                  children: [
-                    TextSpan(
-                      text: monthNames[month.month - 1],
-                      style: TextStyle(color: c.ink),
-                    ),
-                    TextSpan(
-                      text: '  ${month.year}',
-                      style: TextStyle(color: c.gold),
-                    ),
-                  ],
+                  text: monthNames[month.month - 1],
+                  style: TextStyle(color: c.ink, fontWeight: FontWeight.w700),
                 ),
-                style: const TextStyle(
-                  fontFamily: YaiPalette.fontFamily,
-                  fontSize: 44,
-                  height: 1.1,
+                TextSpan(
+                  text: ' ${month.year}',
+                  style: TextStyle(color: c.gold, fontWeight: FontWeight.w400),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: 160,
-                height: 2,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  gradient: LinearGradient(
-                    colors: [
-                      for (final x in YaiPalette.bifrost)
-                        x.withValues(alpha: .75),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
+            style: const TextStyle(fontSize: 38, height: 1.1),
           ),
         ),
         _BottomControls(
@@ -340,6 +293,41 @@ class _DesktopHeader extends StatelessWidget {
           onNext: onNext,
           onToday: onToday,
           onAdd: onAdd,
+        ),
+      ],
+    );
+  }
+}
+
+/// Phone title: the year in the tint colour above a large month name, as at
+/// the top of Apple's month view.
+class _MonthTitle extends StatelessWidget {
+  const _MonthTitle({required this.month});
+
+  final DateTime month;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = YaiPalette.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${month.year}',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w500,
+            color: c.gold,
+          ),
+        ),
+        Text(
+          monthNames[month.month - 1],
+          style: TextStyle(
+            fontSize: 34,
+            height: 1.15,
+            fontWeight: FontWeight.w700,
+            color: c.ink,
+          ),
         ),
       ],
     );
@@ -372,7 +360,7 @@ class _BottomControls extends StatelessWidget {
       mainAxisAlignment: alignment,
       children: [
         GlassIconButton(
-          icon: const Icon(CupertinoIcons.chevron_left),
+          icon: Icon(CupertinoIcons.chevron_left, color: c.gold),
           onPressed: onPrev,
           size: _size,
           semanticLabel: 'Previous month',
@@ -387,23 +375,22 @@ class _BottomControls extends StatelessWidget {
           child: Text(
             'Today',
             style: TextStyle(
-              fontFamily: YaiPalette.fontFamily,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: c.ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: c.gold,
             ),
           ),
         ),
         const SizedBox(width: 10),
         GlassIconButton(
-          icon: const Icon(CupertinoIcons.chevron_right),
+          icon: Icon(CupertinoIcons.chevron_right, color: c.gold),
           onPressed: onNext,
           size: _size,
           semanticLabel: 'Next month',
         ),
         const SizedBox(width: 10),
         GlassIconButton(
-          icon: const Icon(CupertinoIcons.add),
+          icon: Icon(CupertinoIcons.add, color: c.gold),
           onPressed: onAdd,
           size: _size,
           semanticLabel: 'Add event',
@@ -413,78 +400,11 @@ class _BottomControls extends StatelessWidget {
   }
 }
 
-/// The selected day: gold numeral, weekday and month, and an event count.
-class _DayHero extends StatelessWidget {
-  const _DayHero({required this.day, required this.count});
-
-  final DateTime day;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = YaiPalette.of(context);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: c.bg2,
-        border: Border.all(color: c.ink.withValues(alpha: .1)),
-      ),
-      child: Row(
-        children: [
-          Text(
-            '${day.day}',
-            style: TextStyle(
-              fontFamily: YaiPalette.fontFamily,
-              fontSize: 48,
-              height: 1,
-              color: c.gold,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionLabel(weekdayNames[day.weekday - 1]),
-                const SizedBox(height: 4),
-                Text(
-                  '${monthNames[day.month - 1]} ${day.year}',
-                  style: TextStyle(fontSize: 16, color: c.ink),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            count == 0 ? 'Free' : '$count event${count == 1 ? '' : 's'}',
-            style: TextStyle(fontSize: 12, color: c.muted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Page backdrop: a quiet vertical gradient with one faint blue wash, so the
-/// glass bars still have something to refract.
+/// Plain page background (Apple Calendar is flat black / white).
 class _Backdrop extends StatelessWidget {
   const _Backdrop();
 
   @override
-  Widget build(BuildContext context) {
-    final c = YaiPalette.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            c.bg1,
-            Color.alphaBlend(c.act.withValues(alpha: .05), c.bg1)
-          ],
-        ),
-      ),
-      child: const SizedBox.expand(),
-    );
-  }
+  Widget build(BuildContext context) => ColoredBox(
+      color: YaiPalette.of(context).bg1, child: const SizedBox.expand());
 }

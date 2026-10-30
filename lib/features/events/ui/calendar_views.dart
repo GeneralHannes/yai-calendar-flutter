@@ -16,7 +16,7 @@ Map<DateTime, List<CalendarEvent>> groupByDay(List<CalendarEvent> events) {
   return out;
 }
 
-/// Journal-style section heading: small gold caps with wide tracking.
+/// Small grey caps heading, like the section headers in Apple's lists.
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key});
 
@@ -25,25 +25,22 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.3,
-            color: c.gold,
-          ),
-        ),
-      ],
+    return Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: .6,
+        color: c.muted,
+      ),
     );
   }
 }
 
-/// Month grid, Monday first. Tap a day to select it. Each day shows its
-/// event titles (one line each); extra events collapse into "+N".
+/// Month grid, Monday first, in the manner of Apple Calendar: no boxes, just
+/// hairlines between weeks. Today is a red disc, the selected day a dark one.
+/// Each day shows its event titles as small tinted chips; extra events
+/// collapse into "+N".
 class MonthGrid extends StatelessWidget {
   const MonthGrid({
     super.key,
@@ -63,8 +60,8 @@ class MonthGrid extends StatelessWidget {
   final DateTime selected;
   final ValueChanged<DateTime> onDayTap;
 
-  static const _dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  static const _gap = 4.0;
+  static const _dow = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  static const _headerHeight = 28.0;
 
   @override
   Widget build(BuildContext context) {
@@ -77,53 +74,64 @@ class MonthGrid extends StatelessWidget {
     final weeks = ((lead + days) / 7).ceil();
     DateTime dateAt(int w, int d) =>
         DateTime(start.year, start.month, start.day + w * 7 + d);
+    final line = c.ink.withValues(alpha: .14);
 
     return LayoutBuilder(
       builder: (context, box) {
-        // Cells grow with the width, within sensible limits.
         final cellHeight = fill && box.hasBoundedHeight
-            ? ((box.maxHeight - 24 - _gap * weeks) / weeks).clamp(64.0, 220.0)
-            : (box.maxWidth / 7 * 1.05).clamp(64.0, 110.0);
+            ? ((box.maxHeight - _headerHeight - weeks) / weeks)
+                .clamp(72.0, 220.0)
+            : (box.maxWidth / 7 * 1.45).clamp(72.0, 130.0);
         return Column(
-          spacing: _gap,
           children: [
-            Row(
-              spacing: _gap,
-              children: [
-                for (final d in _dow)
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        d,
-                        style: TextStyle(fontSize: 12, color: c.muted),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            for (var w = 0; w < weeks; w++)
-              Row(
-                key: ValueKey('${month.year}-${month.month}-$w'),
-                spacing: _gap,
+            SizedBox(
+              height: _headerHeight,
+              child: Row(
                 children: [
-                  for (var d = 0; d < 7; d++)
+                  for (final d in _dow)
                     Expanded(
-                      child: _FadeIn(
-                        delay: (w * 7 + d) * 14,
-                        child: SizedBox(
-                          height: cellHeight,
-                          child: _DayCell(
-                            day: dateAt(w, d),
-                            inMonth: dateAt(w, d).month == month.month,
-                            selected: selected,
-                            events: byDay[dateAt(w, d)] ?? const [],
-                            onTap: onDayTap,
+                      child: Center(
+                        child: Text(
+                          d,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: c.muted,
                           ),
                         ),
                       ),
                     ),
                 ],
               ),
+            ),
+            for (var w = 0; w < weeks; w++)
+              DecoratedBox(
+                key: ValueKey('${month.year}-${month.month}-$w'),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: line)),
+                ),
+                child: Row(
+                  children: [
+                    for (var d = 0; d < 7; d++)
+                      Expanded(
+                        child: _FadeIn(
+                          delay: (w * 7 + d) * 8,
+                          child: SizedBox(
+                            height: cellHeight,
+                            child: _DayCell(
+                              day: dateAt(w, d),
+                              inMonth: dateAt(w, d).month == month.month,
+                              selected: selected,
+                              events: byDay[dateAt(w, d)] ?? const [],
+                              onTap: onDayTap,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            Container(height: 1, color: line),
           ],
         );
       },
@@ -131,7 +139,7 @@ class MonthGrid extends StatelessWidget {
   }
 }
 
-/// Cells rise and fade in one after another when a month appears.
+/// Cells fade in one after another when a month appears.
 class _FadeIn extends StatelessWidget {
   const _FadeIn({required this.delay, required this.child});
 
@@ -143,13 +151,9 @@ class _FadeIn extends StatelessWidget {
     if (MediaQuery.disableAnimationsOf(context)) return child;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 260 + delay),
-      curve: Curves.easeOutCubic,
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child:
-            Transform.translate(offset: Offset(0, (1 - t) * 10), child: child),
-      ),
+      duration: Duration(milliseconds: 200 + delay),
+      curve: Curves.easeOut,
+      builder: (context, t, child) => Opacity(opacity: t, child: child),
       child: child,
     );
   }
@@ -170,7 +174,7 @@ class _DayCell extends StatelessWidget {
   final List<CalendarEvent> events;
   final ValueChanged<DateTime> onTap;
 
-  static const _chipHeight = 16.0;
+  static const _chipHeight = 15.0;
 
   @override
   Widget build(BuildContext context) {
@@ -180,85 +184,58 @@ class _DayCell extends StatelessWidget {
     // Roomier desktop cells get slightly larger type.
     final scale = MediaQuery.sizeOf(context).width >= 900 ? 1.25 : 1.0;
 
-    final cell = GestureDetector(
+    // Today: red disc. Selected: dark disc. Otherwise plain.
+    final disc = isToday
+        ? c.gold
+        : isSelected
+            ? c.ink
+            : null;
+    final numberColor = disc != null
+        ? (isToday ? Colors.white : c.bg1)
+        : (inMonth ? c.ink : c.muted.withValues(alpha: .6));
+
+    return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => onTap(day),
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: isSelected ? c.act.withValues(alpha: .16) : null,
-          gradient: isSelected
-              ? null
-              : LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    c.bg2,
-                    Color.alphaBlend(
-                      c.act.withValues(alpha: .04),
-                      c.bg2,
-                    ),
-                  ],
-                ),
-          borderRadius: BorderRadius.circular(8),
-          // Journal rings: gold for today, accent for a day with something
-          // planned, a plain hairline otherwise.
-          border: Border.all(
-            color: isSelected
-                ? c.act
-                : isToday
-                    ? c.gold
-                    : events.isNotEmpty
-                        ? c.act.withValues(alpha: .45)
-                        : c.ink.withValues(alpha: .1),
-            width: isSelected || isToday ? 1.5 : 1,
-          ),
-          boxShadow: [
-            if (isToday)
-              BoxShadow(color: c.gold.withValues(alpha: .3), blurRadius: 8),
-          ],
-        ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(2, 5, 2, 2),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
+            Center(
               child: Container(
                 constraints: BoxConstraints(
-                  minWidth: 22 * scale,
-                  minHeight: 22 * scale,
+                  minWidth: 26 * scale,
+                  minHeight: 26 * scale,
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: isToday
-                    ? BoxDecoration(
-                        color: c.gold,
-                        borderRadius: BorderRadius.circular(12 * scale),
-                      )
-                    : null,
-                // widthFactor keeps the marker hugging the digits.
+                decoration: disc == null
+                    ? null
+                    : BoxDecoration(
+                        color: disc,
+                        borderRadius: BorderRadius.circular(16 * scale),
+                      ),
+                // widthFactor keeps the disc hugging the digits.
                 child: Center(
                   widthFactor: 1,
                   heightFactor: 1,
                   child: Text(
                     '${day.day}',
                     style: TextStyle(
-                      fontSize: 12 * scale,
-                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-                      color: isToday ? c.bg1 : c.ink,
+                      fontSize: 16 * scale,
+                      fontWeight:
+                          disc != null ? FontWeight.w600 : FontWeight.w400,
+                      color: numberColor,
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Expanded(child: _titles(c, scale)),
           ],
         ),
       ),
-    );
-    return Opacity(
-      opacity: inMonth ? 1 : .4,
-      child: cell,
     );
   }
 
@@ -272,40 +249,47 @@ class _DayCell extends StatelessWidget {
         final shown =
             overflow ? (fit - 1).clamp(0, events.length) : events.length;
         return ClipRect(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final e in events.take(shown))
-                Container(
-                  height: chipHeight,
-                  margin: const EdgeInsets.only(bottom: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  alignment: Alignment.centerLeft,
-                  decoration: BoxDecoration(
-                    color: c.act.withValues(alpha: .22),
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border(
-                      left: BorderSide(color: c.act, width: 2),
+          child: Opacity(
+            opacity: inMonth ? 1 : .55,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final e in events.take(shown))
+                  Container(
+                    height: chipHeight,
+                    margin: const EdgeInsets.only(bottom: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    alignment: Alignment.centerLeft,
+                    decoration: BoxDecoration(
+                      color: c.act.withValues(alpha: .18),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      e.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10 * scale,
+                        height: 1,
+                        fontWeight: FontWeight.w600,
+                        color: c.act,
+                      ),
                     ),
                   ),
-                  child: Text(
-                    e.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10 * scale,
-                      height: 1,
-                      color: Color.lerp(c.act, c.ink, .45),
+                if (events.length - shown > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: Text(
+                      '+${events.length - shown}',
+                      style: TextStyle(
+                        fontSize: 10 * scale,
+                        height: 1,
+                        color: c.muted,
+                      ),
                     ),
                   ),
-                ),
-              if (events.length - shown > 0)
-                Text(
-                  '+${events.length - shown}',
-                  style: TextStyle(
-                      fontSize: 10 * scale, height: 1, color: c.muted),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -313,7 +297,8 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-/// One event: time, title, location. Swipe left to delete.
+/// One event, as in Apple's day list: start and end time, a calendar-coloured
+/// bar, then title and location. Swipe left to delete.
 class EventTile extends StatelessWidget {
   const EventTile({
     super.key,
@@ -329,57 +314,76 @@ class EventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
+    final s = event.start.toLocal(), t = event.end.toLocal();
+    final times = event.allDay
+        ? [Text('all-day', style: TextStyle(fontSize: 14, color: c.ink))]
+        : [
+            Text(
+              '${two(s.hour)}:${two(s.minute)}',
+              style: TextStyle(fontSize: 15, color: c.ink),
+            ),
+            Text(
+              '${two(t.hour)}:${two(t.minute)}',
+              style: TextStyle(fontSize: 14, color: c.muted),
+            ),
+          ];
     return Dismissible(
       key: ValueKey(event.id),
       direction: DismissDirection.endToStart,
       onDismissed: (_) => onDelete(),
       background: Container(
-        color: c.bad.withValues(alpha: .25),
+        color: c.bad,
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        child: Icon(Icons.delete_outline, color: c.bad),
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
       child: InkWell(
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(color: c.act, width: 3),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 100,
-                child: Text(
-                  timeRange(event),
-                  style: TextStyle(fontSize: 13, height: 1.4, color: c.muted),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 56,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: times,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      event.title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.4,
-                        fontWeight: FontWeight.w700,
-                        color: c.ink,
-                      ),
-                    ),
-                    if ((event.location ?? '').isNotEmpty)
+                Container(
+                  width: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: c.act,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                       Text(
-                        event.location!,
-                        style: TextStyle(fontSize: 12, color: c.muted),
+                        event.title,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: c.ink,
+                        ),
                       ),
-                  ],
+                      if ((event.location ?? '').isNotEmpty)
+                        Text(
+                          event.location!,
+                          style: TextStyle(fontSize: 14, color: c.muted),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -387,7 +391,7 @@ class EventTile extends StatelessWidget {
   }
 }
 
-/// A bordered list of [EventTile]s.
+/// A plain list of [EventTile]s separated by hairlines.
 class EventPanel extends StatelessWidget {
   const EventPanel({
     super.key,
@@ -403,25 +407,17 @@ class EventPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: c.bg2,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: c.ink.withValues(alpha: .1)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (final (i, e) in events.indexed) ...[
-            if (i > 0) Divider(height: 1, color: c.ink.withValues(alpha: .1)),
-            EventTile(
-              event: e,
-              onTap: () => onTap(e),
-              onDelete: () => onDelete(e.id),
-            ),
-          ],
+    return Column(
+      children: [
+        for (final (i, e) in events.indexed) ...[
+          if (i > 0) Divider(height: 1, color: c.ink.withValues(alpha: .12)),
+          EventTile(
+            event: e,
+            onTap: () => onTap(e),
+            onDelete: () => onDelete(e.id),
+          ),
         ],
-      ),
+      ],
     );
   }
 }
