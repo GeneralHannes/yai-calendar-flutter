@@ -47,6 +47,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (day.month != _c.month.month || day.year != _c.month.year) {
       _c.showMonth(day);
     }
+    // And pop up everything about that date.
+    showDayDetails(
+      context,
+      day: day,
+      eventsFor: _all,
+      onSave: _c.save,
+      onDelete: _c.delete,
+    );
   }
 
   /// Every loaded event (visible window + upcoming), de-duplicated by id.
@@ -89,6 +97,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         final wide = MediaQuery.sizeOf(context).width >= 900;
 
         final grid = MonthGrid(
+          month: month,
+          events: _c.events,
+          selected: _selected,
+          onDayTap: _select,
+        );
+
+        final gridFill = MonthGrid(
+          fill: true,
           month: month,
           events: _c.events,
           selected: _selected,
@@ -141,77 +157,100 @@ class _CalendarScreenState extends State<CalendarScreen> {
             edgeToEdge: true,
             // Top: just the month, in the journal's gold caps over its
             // hairline. Every control lives at the bottom, in thumb reach.
-            appBar: GlassAppBar(
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${monthNames[month.month - 1]} ${month.year}'
-                        .toUpperCase(),
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontFamily: YaiPalette.fontFamily,
-                      fontSize: 14,
-                      letterSpacing: 1.6,
-                      color: c.gold,
+            appBar: wide
+                ? null
+                : GlassAppBar(
+                    title: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${monthNames[month.month - 1]} ${month.year}'
+                              .toUpperCase(),
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontFamily: YaiPalette.fontFamily,
+                            fontSize: 14,
+                            letterSpacing: 1.6,
+                            color: c.gold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 96,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            gradient: LinearGradient(
+                              colors: [
+                                for (final x in YaiPalette.bifrost)
+                                  x.withValues(alpha: .75),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 96,
-                    height: 2,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      gradient: LinearGradient(
-                        colors: [
-                          for (final x in YaiPalette.bifrost)
-                            x.withValues(alpha: .75),
-                        ],
+            bottomBar: wide
+                ? null
+                : SafeArea(
+                    top: false,
+                    child: Center(
+                      heightFactor: 1,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                          child: _BottomControls(
+                            onPrev: () => _shiftMonth(-1),
+                            onNext: () => _shiftMonth(1),
+                            onToday: _goToday,
+                            onAdd: _add,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            bottomBar: SafeArea(
-              top: false,
-              child: Center(
-                heightFactor: 1,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    child: _BottomControls(
-                      onPrev: () => _shiftMonth(-1),
-                      onNext: () => _shiftMonth(1),
-                      onToday: _goToday,
-                      onAdd: _add,
-                    ),
-                  ),
-                ),
-              ),
-            ),
             body: wide
                 // Landscape: calendar on the left, the lists on the right.
                 ? Padding(
-                    padding: EdgeInsets.fromLTRB(20, top, 20, bottom),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    padding: EdgeInsets.fromLTRB(
+                      36,
+                      safe.top + 28,
+                      36,
+                      safe.bottom + 28,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          flex: 3,
-                          child: SingleChildScrollView(child: grid),
+                        _DesktopHeader(
+                          month: month,
+                          onPrev: () => _shiftMonth(-1),
+                          onNext: () => _shiftMonth(1),
+                          onToday: _goToday,
+                          onAdd: _add,
                         ),
-                        const SizedBox(width: 24),
-                        SizedBox(
-                          width: (MediaQuery.sizeOf(context).width * .3)
-                              .clamp(340.0, 520.0),
-                          child: ListView(
-                            padding: EdgeInsets.zero,
+                        const SizedBox(height: 24),
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              selectedSection,
-                              const SizedBox(height: 28),
-                              upNextSection,
+                              // The calendar fills the window.
+                              Expanded(child: gridFill),
+                              const SizedBox(width: 32),
+                              // Side panel: the selected date, then Up next.
+                              SizedBox(
+                                width: (MediaQuery.sizeOf(context).width * .27)
+                                    .clamp(340.0, 460.0),
+                                child: ListView(
+                                  padding: EdgeInsets.zero,
+                                  children: [
+                                    selectedSection,
+                                    const SizedBox(height: 28),
+                                    upNextSection,
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -238,6 +277,81 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 }
 
+/// Desktop header: a large month title on the left, the controls on the
+/// right. (Phones use the compact top title and the bottom controls instead.)
+class _DesktopHeader extends StatelessWidget {
+  const _DesktopHeader({
+    required this.month,
+    required this.onPrev,
+    required this.onNext,
+    required this.onToday,
+    required this.onAdd,
+  });
+
+  final DateTime month;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onToday;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = YaiPalette.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: monthNames[month.month - 1],
+                      style: TextStyle(color: c.ink),
+                    ),
+                    TextSpan(
+                      text: '  ${month.year}',
+                      style: TextStyle(color: c.gold),
+                    ),
+                  ],
+                ),
+                style: const TextStyle(
+                  fontFamily: YaiPalette.fontFamily,
+                  fontSize: 44,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: 160,
+                height: 2,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  gradient: LinearGradient(
+                    colors: [
+                      for (final x in YaiPalette.bifrost)
+                        x.withValues(alpha: .75),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _BottomControls(
+          alignment: MainAxisAlignment.end,
+          onPrev: onPrev,
+          onNext: onNext,
+          onToday: onToday,
+          onAdd: onAdd,
+        ),
+      ],
+    );
+  }
+}
+
 /// Thumb-reach controls, centred: previous / today / next / add. Big (52) glass targets, so they're easy to hit one-handed.
 class _BottomControls extends StatelessWidget {
   const _BottomControls({
@@ -245,12 +359,14 @@ class _BottomControls extends StatelessWidget {
     required this.onNext,
     required this.onToday,
     required this.onAdd,
+    this.alignment = MainAxisAlignment.center,
   });
 
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onToday;
   final VoidCallback onAdd;
+  final MainAxisAlignment alignment;
 
   static const _size = 52.0;
 
@@ -258,7 +374,8 @@ class _BottomControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: alignment,
       children: [
         GlassIconButton(
           icon: const Icon(CupertinoIcons.chevron_left),

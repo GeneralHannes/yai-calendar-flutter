@@ -46,7 +46,12 @@ class MonthGrid extends StatelessWidget {
     required this.events,
     required this.selected,
     required this.onDayTap,
+    this.fill = false,
   });
+
+  /// Stretch the cells to fill the available height (desktop) instead of a
+  /// size based on the width (phones, inside a scroll view).
+  final bool fill;
 
   final DateTime month;
   final List<CalendarEvent> events;
@@ -71,7 +76,9 @@ class MonthGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         // Cells grow with the width, within sensible limits.
-        final cellHeight = (box.maxWidth / 7 * 1.05).clamp(64.0, 110.0);
+        final cellHeight = fill && box.hasBoundedHeight
+            ? ((box.maxHeight - 24 - _gap * weeks) / weeks).clamp(64.0, 220.0)
+            : (box.maxWidth / 7 * 1.05).clamp(64.0, 110.0);
         return Column(
           spacing: _gap,
           children: [
@@ -137,6 +144,8 @@ class _DayCell extends StatelessWidget {
     final c = YaiPalette.of(context);
     final isToday = sameDay(day, DateTime.now());
     final isSelected = sameDay(day, selected);
+    // Roomier desktop cells get slightly larger type.
+    final scale = MediaQuery.sizeOf(context).width >= 900 ? 1.25 : 1.0;
 
     return Opacity(
       opacity: inMonth ? 1 : .4,
@@ -168,27 +177,37 @@ class _DayCell extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                alignment: Alignment.center,
-                decoration: isToday
-                    ? BoxDecoration(
-                        color: c.gold,
-                        borderRadius: BorderRadius.circular(11),
-                      )
-                    : null,
-                child: Text(
-                  '${day.day}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-                    color: isToday ? c.bg1 : c.ink,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  constraints: BoxConstraints(
+                    minWidth: 22 * scale,
+                    minHeight: 22 * scale,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: isToday
+                      ? BoxDecoration(
+                          color: c.gold,
+                          borderRadius: BorderRadius.circular(12 * scale),
+                        )
+                      : null,
+                  // widthFactor keeps the marker hugging the digits.
+                  child: Center(
+                    widthFactor: 1,
+                    heightFactor: 1,
+                    child: Text(
+                      '${day.day}',
+                      style: TextStyle(
+                        fontSize: 12 * scale,
+                        fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                        color: isToday ? c.bg1 : c.ink,
+                      ),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 2),
-              Expanded(child: _titles(c)),
+              Expanded(child: _titles(c, scale)),
             ],
           ),
         ),
@@ -196,11 +215,12 @@ class _DayCell extends StatelessWidget {
     );
   }
 
-  Widget _titles(YaiPalette c) {
+  Widget _titles(YaiPalette c, double scale) {
     if (events.isEmpty) return const SizedBox.shrink();
     return LayoutBuilder(
       builder: (context, box) {
-        final fit = (box.maxHeight / (_chipHeight + 2)).floor();
+        final chipHeight = _chipHeight * scale;
+        final fit = (box.maxHeight / (chipHeight + 2)).floor();
         final overflow = events.length > fit;
         final shown =
             overflow ? (fit - 1).clamp(0, events.length) : events.length;
@@ -210,7 +230,7 @@ class _DayCell extends StatelessWidget {
             children: [
               for (final e in events.take(shown))
                 Container(
-                  height: _chipHeight,
+                  height: chipHeight,
                   margin: const EdgeInsets.only(bottom: 2),
                   padding: const EdgeInsets.symmetric(horizontal: 3),
                   alignment: Alignment.centerLeft,
@@ -222,13 +242,15 @@ class _DayCell extends StatelessWidget {
                     e.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10, height: 1, color: c.act),
+                    style: TextStyle(
+                        fontSize: 10 * scale, height: 1, color: c.act),
                   ),
                 ),
               if (events.length - shown > 0)
                 Text(
                   '+${events.length - shown}',
-                  style: TextStyle(fontSize: 10, height: 1, color: c.muted),
+                  style: TextStyle(
+                      fontSize: 10 * scale, height: 1, color: c.muted),
                 ),
             ],
           ),

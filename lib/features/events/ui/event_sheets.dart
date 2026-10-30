@@ -5,29 +5,25 @@ import '../../../core/theme/yai_theme.dart';
 import '../data/calendar_event.dart';
 import 'date_format.dart';
 
-/// Add / edit form. A glass bottom sheet on phones; on wide screens a glass
-/// card that fades and scales in instead of sliding up. Returns the event to
-/// save, or null when cancelled.
-Future<CalendarEvent?> showEventEditor(
+/// Shows [child] as glass chrome: a bottom sheet on phones; on wide screens a
+/// glass card that fades and scales in instead of sliding up.
+Future<T?> showGlassPopup<T>(
   BuildContext context, {
-  required DateTime day,
-  CalendarEvent? existing,
+  required Widget child,
+  GlassSheetState state = GlassSheetState.full,
 }) {
-  final editor = Material(
-    type: MaterialType.transparency,
-    child: _EventEditor(day: day, existing: existing),
-  );
+  final content = Material(type: MaterialType.transparency, child: child);
 
   if (MediaQuery.sizeOf(context).width < 700) {
-    return GlassModalSheet.show<CalendarEvent>(
+    return GlassModalSheet.show<T>(
       context: context,
-      initialState: GlassSheetState.full,
-      builder: (_) => editor,
+      initialState: state,
+      builder: (_) => content,
     );
   }
 
   final c = YaiPalette.of(context);
-  return showGeneralDialog<CalendarEvent>(
+  return showGeneralDialog<T>(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Close',
@@ -45,7 +41,7 @@ Future<CalendarEvent?> showEventEditor(
               shape: const LiquidRoundedSuperellipse(borderRadius: 28),
               color: c.bg2.withValues(alpha: .62),
               clipBehavior: Clip.antiAlias,
-              child: editor,
+              child: content,
             ),
           ),
         ),
@@ -67,6 +63,37 @@ Future<CalendarEvent?> showEventEditor(
     },
   );
 }
+
+/// Add / edit form. Returns the event to save, or null when cancelled.
+Future<CalendarEvent?> showEventEditor(
+  BuildContext context, {
+  required DateTime day,
+  CalendarEvent? existing,
+}) =>
+    showGlassPopup<CalendarEvent>(
+      context,
+      child: _EventEditor(day: day, existing: existing),
+    );
+
+/// Everything about one date: each event's time, title, location and notes,
+/// with edit, delete and add. Opens when a calendar cell is tapped.
+Future<void> showDayDetails(
+  BuildContext context, {
+  required DateTime day,
+  required List<CalendarEvent> Function() eventsFor,
+  required Future<void> Function(CalendarEvent) onSave,
+  required Future<void> Function(String id) onDelete,
+}) =>
+    showGlassPopup<void>(
+      context,
+      state: GlassSheetState.half,
+      child: _DayDetails(
+        day: day,
+        eventsFor: eventsFor,
+        onSave: onSave,
+        onDelete: onDelete,
+      ),
+    );
 
 TextStyle _fieldText(Color color) => TextStyle(
       fontFamily: YaiPalette.fontFamily,
@@ -243,6 +270,189 @@ class _EventEditorState extends State<_EventEditor> {
           const SizedBox(height: 20),
           FilledButton(onPressed: _save, child: const Text('Save')),
         ],
+      ),
+    );
+  }
+}
+
+class _DayDetails extends StatefulWidget {
+  const _DayDetails({
+    required this.day,
+    required this.eventsFor,
+    required this.onSave,
+    required this.onDelete,
+  });
+
+  final DateTime day;
+  final List<CalendarEvent> Function() eventsFor;
+  final Future<void> Function(CalendarEvent) onSave;
+  final Future<void> Function(String id) onDelete;
+
+  @override
+  State<_DayDetails> createState() => _DayDetailsState();
+}
+
+class _DayDetailsState extends State<_DayDetails> {
+  Future<void> _add() async {
+    final event = await showEventEditor(context, day: widget.day);
+    if (event == null) return;
+    await widget.onSave(event);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _edit(CalendarEvent e) async {
+    final edited = await showEventEditor(context, day: widget.day, existing: e);
+    if (edited == null) return;
+    await widget.onSave(edited);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _delete(CalendarEvent e) async {
+    await widget.onDelete(e.id);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = YaiPalette.of(context);
+    final events = widget
+        .eventsFor()
+        .where((e) => sameDay(e.start.toLocal(), widget.day))
+        .toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+    final d = widget.day;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 30, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            weekdayNames[d.weekday - 1].toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.3,
+              color: c.gold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${d.day} ${monthNames[d.month - 1]} ${d.year}',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            events.isEmpty
+                ? 'Nothing planned'
+                : '${events.length} ${events.length == 1 ? 'event' : 'events'}',
+            style: TextStyle(color: c.muted),
+          ),
+          const SizedBox(height: 16),
+          for (final e in events) ...[
+            _DetailCard(
+              event: e,
+              onTap: () => _edit(e),
+              onDelete: () => _delete(e),
+            ),
+            const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 6),
+          FilledButton.icon(
+            onPressed: _add,
+            icon: const Icon(Icons.add),
+            label: const Text('Add event'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One event with all of its details. Tap to edit.
+class _DetailCard extends StatelessWidget {
+  const _DetailCard({
+    required this.event,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final CalendarEvent event;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = YaiPalette.of(context);
+    final location = event.location;
+    final notes = event.description;
+    return Material(
+      color: c.bg2,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: c.ink.withValues(alpha: .1)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      timeRange(event),
+                      style: TextStyle(fontSize: 13, color: c.gold),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      event.title,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: c.ink,
+                      ),
+                    ),
+                    if (location != null && location.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.place_outlined, size: 16, color: c.muted),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              location,
+                              style: TextStyle(fontSize: 14, color: c.muted),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (notes != null && notes.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        notes,
+                        style:
+                            TextStyle(fontSize: 14, height: 1.4, color: c.ink),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Delete',
+                icon: Icon(Icons.delete_outline, color: c.bad),
+                onPressed: onDelete,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
