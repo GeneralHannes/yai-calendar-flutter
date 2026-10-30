@@ -238,8 +238,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 }
 
-/// Thumb-reach controls: previous / today / next on the left, add on the
-/// right. Big (52) glass targets, so they're easy to hit one-handed.
+/// Thumb-reach controls, centred: previous / today / next / add. Big (52) glass targets, so they're easy to hit one-handed.
 class _BottomControls extends StatelessWidget {
   const _BottomControls({
     required this.onPrev,
@@ -259,6 +258,7 @@ class _BottomControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = YaiPalette.of(context);
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         GlassIconButton(
           icon: const Icon(CupertinoIcons.chevron_left),
@@ -290,7 +290,7 @@ class _BottomControls extends StatelessWidget {
           size: _size,
           semanticLabel: 'Next month',
         ),
-        const Spacer(),
+        const SizedBox(width: 10),
         GlassIconButton(
           icon: Icon(CupertinoIcons.add, color: c.warn),
           glowColor: c.warn.withValues(alpha: .45),
