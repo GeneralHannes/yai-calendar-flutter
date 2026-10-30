@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Replaced by `--base-href` at build time. -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Lightweight offline-first calendar.">
+  <meta name="theme-color" content="#1E2030">
+
+  <!-- iOS: installed-to-home-screen behaviour -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Yai Calendar">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="manifest" href="manifest.json">
+
+  <title>Yai Calendar</title>
+
+  <style>
+    /* Paint the app background before Flutter boots: no white flash. */
+    html, body { margin: 0; height: 100%; background: #1E2030; }
+    #boot {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: radial-gradient(900px 600px at 0% -10%, rgba(130,170,255,.18), transparent 60%), #1E2030;
+      color: #D4AF37; font: 14px/1 Georgia, serif; letter-spacing: .16em;
+      transition: opacity .3s ease;
+    }
+    #boot i { display: block; width: 120px; height: 2px; border-radius: 2px;
+      background: linear-gradient(90deg,#D4AF37,#D98A3C,#8FA6BF,#8B7BC4,#5A6FC0); opacity: .7; }
+  </style>
+</head>
+<body>
+  <div id="boot">YAI CALENDAR<i></i></div>
+  <script>
+    // Fade the splash out once Flutter paints its first frame.
+    window.addEventListener('flutter-first-frame', function () {
+      var b = document.getElementById('boot');
+      if (!b) return;
+      b.style.opacity = '0';
+      setTimeout(function () { b.remove(); }, 350);
+    });
+  </script>
+  <script>
+    // Offline app shell. `sw.js` lives at the app root so its scope covers it.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (e) {
+          console.warn('Service worker registration failed:', e);
+        });
+      });
+    }
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

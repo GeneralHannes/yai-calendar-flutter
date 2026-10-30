@@ -1,0 +1,41 @@
+name: calendar_app
+description: Lightweight offline-first calendar client.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+# Deliberately tiny dependency surface: SQLite, HTTP, path joining. Nothing else.
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.4.1
+  http: ^1.2.2
+  path: ^1.9.0
+  sqflite_common_ffi_web: ^1.2.0
+  cupertino_icons: ^2.0.0
+  liquid_glass_widgets: ^1.16.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  sqflite_common_ffi: ^2.3.4
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Libron (OFL) by Nico Verbruggen — https://github.com/nicoverbruggen/libron
+  fonts:
+    - family: Libron
+      fonts:
+        - asset: assets/fonts/Libron-Regular.ttf
+        - asset: assets/fonts/Libron-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Libron-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Libron-BoldItalic.ttf
+          weight: 700
+          style: italic
